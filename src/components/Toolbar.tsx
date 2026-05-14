@@ -1,0 +1,227 @@
+import React, { useRef, useState, useEffect } from 'react';
+import { useEditorStore } from '../store/editorStore';
+
+const TOOLS = [
+  { mode: 'edit' as const,       label: 'Edit',      icon: '↖', title: 'Edit track nodes (V)',        shortcut: 'V' },
+  { mode: 'surface' as const,    label: 'Surface',   icon: '⬛', title: 'Paint space surfaces (S)',    shortcut: 'S' },
+  { mode: 'condition' as const,  label: 'Condition', icon: '◼', title: 'Place condition markers (D)',  shortcut: 'D' },
+  { mode: 'background' as const, label: 'BG Layer',  icon: '▣', title: 'Edit background image (B)',   shortcut: 'B' },
+];
+
+export const Toolbar: React.FC = () => {
+  const {
+    tool,
+    setTool,
+    undo,
+    redo,
+    showGrid,
+    showSpline,
+    toggleGrid,
+    toggleSpline,
+    setBackgroundImage,
+    exportPackage,
+    loadPackage,
+    resetAll,
+    _history,
+    _future,
+  } = useEditorStore();
+
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const pkgInputRef = useRef<HTMLInputElement>(null);
+  const [confirmReset, setConfirmReset] = useState(false);
+  const confirmTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const handleResetClick = () => {
+    if (confirmReset) {
+      resetAll();
+      setConfirmReset(false);
+      if (confirmTimer.current) clearTimeout(confirmTimer.current);
+    } else {
+      setConfirmReset(true);
+      confirmTimer.current = setTimeout(() => setConfirmReset(false), 3000);
+    }
+  };
+
+  useEffect(() => () => { if (confirmTimer.current) clearTimeout(confirmTimer.current); }, []);
+
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = ev => {
+      const dataUrl = ev.target?.result as string;
+      const img = new Image();
+      img.onload = () => setBackgroundImage(dataUrl, img.naturalWidth, img.naturalHeight);
+      img.src = dataUrl;
+    };
+    reader.readAsDataURL(file);
+    e.target.value = '';
+  };
+
+  return (
+    <div style={styles.toolbar}>
+      <div style={styles.brand}>
+        <span style={styles.brandIcon}>🏎</span>
+        <span style={styles.brandText}>Heat Track Editor</span>
+      </div>
+
+      <div style={styles.divider} />
+
+      {TOOLS.map(t => (
+        <button
+          key={t.mode}
+          onClick={() => setTool(t.mode)}
+          title={t.title}
+          style={{
+            ...styles.toolBtn,
+            ...(tool === t.mode ? styles.toolBtnActive : {}),
+          }}
+        >
+          <span style={styles.toolIcon}>{t.icon}</span>
+          <span style={styles.toolLabel}>{t.label}</span>
+          <span style={styles.toolShortcut}>[{t.shortcut}]</span>
+        </button>
+      ))}
+
+      <div style={styles.divider} />
+
+      <div style={styles.hintGroup}>
+        <span style={styles.hint}>Shift+click node → select</span>
+        <span style={styles.hint}>C → corner · F → finish · L → legends · H → phantom</span>
+        <span style={styles.hint}>Del → delete · 2 selected → type spaces</span>
+        <span style={styles.hint}>D → condition markers</span>
+      </div>
+
+      <div style={styles.divider} />
+
+      <button
+        onClick={toggleGrid}
+        title="Toggle space grid"
+        style={{ ...styles.toolBtn, ...(showGrid ? styles.toolBtnActive : {}) }}
+      >
+        <span style={styles.toolIcon}>#</span>
+        <span style={styles.toolLabel}>Grid</span>
+      </button>
+      <button
+        onClick={toggleSpline}
+        title="Toggle track lines"
+        style={{ ...styles.toolBtn, ...(showSpline ? styles.toolBtnActive : {}) }}
+      >
+        <span style={styles.toolIcon}>〰</span>
+        <span style={styles.toolLabel}>Track</span>
+      </button>
+
+      <div style={styles.divider} />
+
+      <button
+        onClick={undo}
+        disabled={_history.length === 0}
+        title="Undo (Ctrl+Z)"
+        style={{ ...styles.toolBtn, ...(_history.length === 0 ? styles.toolBtnDisabled : {}) }}
+      >
+        <span style={styles.toolIcon}>↩</span>
+        <span style={styles.toolLabel}>Undo</span>
+      </button>
+      <button
+        onClick={redo}
+        disabled={_future.length === 0}
+        title="Redo (Ctrl+Shift+Z)"
+        style={{ ...styles.toolBtn, ...(_future.length === 0 ? styles.toolBtnDisabled : {}) }}
+      >
+        <span style={styles.toolIcon}>↪</span>
+        <span style={styles.toolLabel}>Redo</span>
+      </button>
+
+      <div style={styles.divider} />
+
+      <button
+        onClick={handleResetClick}
+        title="Reset everything"
+        style={{ ...styles.toolBtn, ...(confirmReset ? styles.toolBtnDanger : {}) }}
+      >
+        <span style={styles.toolIcon}>{confirmReset ? '⚠' : '⟳'}</span>
+        <span style={styles.toolLabel}>{confirmReset ? 'Confirm?' : 'Reset'}</span>
+      </button>
+
+      <div style={styles.spacer} />
+
+      {/* Save / Load package */}
+      <button onClick={exportPackage} title="Save track package (.hte)" style={styles.uploadBtn}>
+        <span style={styles.toolIcon}>💾</span>
+        <span style={styles.toolLabel}>Save</span>
+      </button>
+      <button onClick={() => pkgInputRef.current?.click()} title="Load track package (.hte or legacy .json)" style={styles.uploadBtn}>
+        <span style={styles.toolIcon}>📂</span>
+        <span style={styles.toolLabel}>Load</span>
+      </button>
+      <input
+        ref={pkgInputRef} type="file" accept=".hte,.json,application/json"
+        style={{ display: 'none' }}
+        onChange={e => { const f = e.target.files?.[0]; if (f) loadPackage(f); e.target.value = ''; }}
+      />
+
+      <div style={styles.divider} />
+
+      {/* Upload background image */}
+      <button
+        onClick={() => fileInputRef.current?.click()}
+        title="Upload background image"
+        style={styles.uploadBtn}
+      >
+        <span style={styles.toolIcon}>📷</span>
+        <span style={styles.toolLabel}>Image</span>
+      </button>
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/*"
+        style={{ display: 'none' }}
+        onChange={handleImageUpload}
+      />
+    </div>
+  );
+};
+
+const styles: Record<string, React.CSSProperties> = {
+  toolbar: {
+    display: 'flex', flexDirection: 'row', alignItems: 'center', gap: 4,
+    background: '#0f172a', borderBottom: '1px solid #1e293b',
+    padding: '6px 12px', flexShrink: 0, overflowX: 'auto',
+  },
+  brand: { display: 'flex', alignItems: 'center', gap: 6, marginRight: 8 },
+  brandIcon: { fontSize: 20 },
+  brandText: {
+    color: '#e2e8f0', fontWeight: 700, fontSize: 14,
+    letterSpacing: '0.02em', whiteSpace: 'nowrap',
+  },
+  divider: { width: 1, height: 28, background: '#334155', margin: '0 4px', flexShrink: 0 },
+  spacer: { flex: 1 },
+  hintGroup: {
+    display: 'flex', flexDirection: 'column', gap: 1,
+    padding: '0 6px',
+  },
+  hint: { color: '#334155', fontSize: 9, whiteSpace: 'nowrap' },
+  toolBtn: {
+    display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1,
+    padding: '4px 10px', background: 'transparent',
+    border: '1px solid transparent', borderRadius: 6,
+    color: '#94a3b8', cursor: 'pointer', transition: 'all 0.15s',
+    minWidth: 54, flexShrink: 0,
+  },
+  toolBtnActive: {
+    background: '#1e3a5f', border: '1px solid #3b82f6', color: '#93c5fd',
+  },
+  toolBtnDisabled: { opacity: 0.35, cursor: 'not-allowed' },
+  toolBtnDanger: {
+    background: '#450a0a', border: '1px solid #ef4444', color: '#fca5a5',
+  },
+  toolIcon: { fontSize: 16, lineHeight: 1 },
+  toolLabel: { fontSize: 10, lineHeight: 1, whiteSpace: 'nowrap' },
+  toolShortcut: { fontSize: 9, opacity: 0.5, lineHeight: 1 },
+  uploadBtn: {
+    display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1,
+    padding: '4px 12px', background: '#1e3a5f',
+    border: '1px solid #3b82f6', borderRadius: 6,
+    color: '#93c5fd', cursor: 'pointer', minWidth: 54, flexShrink: 0,
+  },
+};

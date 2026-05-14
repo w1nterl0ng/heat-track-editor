@@ -1,0 +1,741 @@
+import type { Point, TrackNode, SegmentData, SurfaceType, SurfaceSide } from '../types/track';
+import type { SplineSample } from './spline';
+import type { ComputedSegment } from '../store/editorStore';
+
+export interface TrackLines {
+  centerPoints: number[];
+  innerPoints: number[];
+  outerPoints: number[];
+}
+
+export interface CornerLine {
+  id: string;
+  inner: Point;
+  outer: Point;
+  center: Point;
+  normal: Point;
+  sampleIndex: number;
+}
+
+export interface SpaceTick {
+  inner: Point;
+  outer: Point;
+  center: Point;
+}
+
+/**
+ * Build flat point arrays for center, inner and outer spline lines.
+ */
+export function buildTrackLines(
+  samples: SplineSample[],
+  halfWidth: number
+): TrackLines {
+  const center: number[] = [];
+  const inner: number[] = [];
+  const outer: number[] = [];
+
+  for (const s of samples) {
+    center.push(s.point.x, s.point.y);
+    inner.push(s.point.x - s.normal.x * halfWidth, s.point.y - s.normal.y * halfWidth);
+    outer.push(s.point.x + s.normal.x * halfWidth, s.point.y + s.normal.y * halfWidth);
+  }
+
+  if (samples.length > 0) {
+    center.push(samples[0].point.x, samples[0].point.y);
+    inner.push(
+      samples[0].point.x - samples[0].normal.x * halfWidth,
+      samples[0].point.y - samples[0].normal.y * halfWidth
+    );
+    outer.push(
+      samples[0].point.x + samples[0].normal.x * halfWidth,
+      samples[0].point.y + samples[0].normal.y * halfWidth
+    );
+  }
+
+  return { centerPoints: center, innerPoints: inner, outerPoints: outer };
+}
+
+/**
+ * For each corner node, compute the cross-track line geometry at that node's
+ * position on the spline. Node i → sample index i * samplesPerEdge.
+ */
+export function buildCornerLines(
+  samples: SplineSample[],
+  nodes: TrackNode[],
+  samplesPerEdge: number,
+  halfWidth: number
+): CornerLine[] {
+  if (samples.length === 0) return [];
+  return nodes
+    .map((nd, i) => ({ nd, i }))
+    .filter(({ nd }) => nd.isCorner)
+    .map(({ nd, i }) => {
+      const sampleIdx = Math.min(i * samplesPerEdge, samples.length - 1);
+      const s = samples[sampleIdx];
+      return {
+        id: nd.id,
+        center: s.point,
+        normal: s.normal,
+        inner: {
+          x: s.point.x - s.normal.x * halfWidth,
+          y: s.point.y - s.normal.y * halfWidth,
+        },
+        outer: {
+          x: s.point.x + s.normal.x * halfWidth,
+          y: s.point.y + s.normal.y * halfWidth,
+        },
+        sampleIndex: sampleIdx,
+      };
+    });
+}
+
+/**
+ * Build space-tick marks. Each intermediate node between two consecutive corner
+ * nodes is one tick (one edge = one playable space).
+ * Returns one array of ticks per segment (corner-to-corner arc).
+ */
+export function buildSpaceTicks(
+  samples: SplineSample[],
+  nodes: TrackNode[],
+  samplesPerEdge: number,
+  halfWidth: number
+): SpaceTick[][] {
+  if (samples.length === 0) return [];
+
+  const n = nodes.length;
+  const cornerIndices = nodes
+    .map((nd, i) => (nd.isCorner ? i : -1))
+    .filter(i => i >= 0);
+
+  if (cornerIndices.length < 2) return [];
+
+  return cornerIndices.map((cStart, ci) => {
+    const cEnd = cornerIndices[(ci + 1) % cornerIndices.length];
+    const dist = (cEnd - cStart + n) % n;
+
+    const ticks: SpaceTick[] = [];
+    for (let k = 1; k < dist; k++) {
+      const nodeIdx = (cStart + k) % n;
+      if (nodes[nodeIdx].isPhantom) continue; // phantom node — no tick for this boundary
+      const sampleIdx = Math.min(nodeIdx * samplesPerEdge, samples.length - 1);
+      const s = samples[sampleIdx];
+      ticks.push({
+        center: s.point,
+        inner: {
+          x: s.point.x - s.normal.x * halfWidth,
+          y: s.point.y - s.normal.y * halfWidth,
+        },
+        outer: {
+          x: s.point.x + s.normal.x * halfWidth,
+          y: s.point.y + s.normal.y * halfWidth,
+        },
+      });
+    }
+    return ticks;
+  });
+}
+
+/**
+ * Find the finish line position (at the node with isFinishLine=true).
+ */
+export function buildFinishLine(
+  samples: SplineSample[],
+  nodes: TrackNode[],
+  samplesPerEdge: number,
+  halfWidth: number
+): { inner: Point; outer: Point; center: Point } | null {
+  if (samples.length === 0) return null;
+  const idx = nodes.findIndex(nd => nd.isFinishLine);
+  if (idx === -1) return null;
+  const sampleIdx = Math.min(idx * samplesPerEdge, samples.length - 1);
+  const s = samples[sampleIdx];
+  return {
+    center: s.point,
+    inner: {
+      x: s.point.x - s.normal.x * halfWidth,
+      y: s.point.y - s.normal.y * halfWidth,
+    },
+    outer: {
+      x: s.point.x + s.normal.x * halfWidth,
+      y: s.point.y + s.normal.y * halfWidth,
+    },
+  };
+}
+
+/**
+ * Build the filled arc geometry for a single sector (for selection highlight).
+ * Returns flat point arrays for the inner and outer edges of that arc.
+ */
+export function buildSegmentArcPoints(
+  samples: SplineSample[],
+  nodes: TrackNode[],
+  samplesPerEdge: number,
+  startNodeIndex: number,
+  endNodeIndex: number,
+): { innerPoints: number[]; outerPoints: number[] } | null {
+  if (samples.length === 0) return null;
+  const n = nodes.length;
+  const dist = (endNodeIndex - startNodeIndex + n) % n;
+  if (dist === 0) return null;
+
+  const innerPoints: number[] = [];
+  const outerPoints: number[] = [];
+  const totalSamples = samples.length;
+
+  for (let k = 0; k <= dist * samplesPerEdge; k++) {
+    const idx = (startNodeIndex * samplesPerEdge + k) % totalSamples;
+    const s = samples[idx];
+    // We use a unit-normal offset here; caller multiplies by halfWidth
+    innerPoints.push(s.point.x, s.point.y, -s.normal.x, -s.normal.y);
+    outerPoints.push(s.point.x, s.point.y, s.normal.x, s.normal.y);
+  }
+
+  return { innerPoints, outerPoints };
+}
+
+/**
+ * Build the filled sector highlight polygon (closed, for a Konva <Line closed fill>).
+ * Returns a single flat [x,y,...] array tracing inner edge forward, then outer edge backward.
+ */
+export function buildSectorHighlightPolygon(
+  samples: SplineSample[],
+  nodes: TrackNode[],
+  samplesPerEdge: number,
+  startNodeIndex: number,
+  endNodeIndex: number,
+  halfWidth: number,
+): number[] {
+  if (samples.length === 0) return [];
+  const n = nodes.length;
+  const dist = (endNodeIndex - startNodeIndex + n) % n;
+  if (dist === 0) return [];
+
+  const totalSamples = samples.length;
+  const inner: number[] = [];
+  const outer: number[] = [];
+
+  for (let k = 0; k <= dist * samplesPerEdge; k++) {
+    const idx = (startNodeIndex * samplesPerEdge + k) % totalSamples;
+    const s = samples[idx];
+    inner.push(
+      s.point.x - s.normal.x * halfWidth,
+      s.point.y - s.normal.y * halfWidth,
+    );
+    outer.push(
+      s.point.x + s.normal.x * halfWidth,
+      s.point.y + s.normal.y * halfWidth,
+    );
+  }
+
+  // Trace inner forward, then outer backward → closed polygon
+  const reversed: number[] = [];
+  for (let i = outer.length - 2; i >= 0; i -= 2) {
+    reversed.push(outer[i], outer[i + 1]);
+  }
+
+  return [...inner, ...reversed];
+}
+
+export interface RaceLineArc {
+  points: number[];
+  side: 'L' | 'R';
+}
+
+/**
+ * Build a thick arc along the inner (L) or outer (R) edge for each sector.
+ * The arc is drawn just outside the track edge so it's clearly visible.
+ */
+export function buildRaceLineArcs(
+  samples: SplineSample[],
+  nodes: TrackNode[],
+  samplesPerEdge: number,
+  segmentData: SegmentData[],
+  halfWidth: number,
+): RaceLineArc[] {
+  if (samples.length === 0) return [];
+  const result: RaceLineArc[] = [];
+  const n = nodes.length;
+  const cornerIndices = nodes
+    .map((nd, i) => (nd.isCorner ? i : -1))
+    .filter(i => i >= 0);
+  if (cornerIndices.length < 2) return result;
+
+  const totalSamples = samples.length;
+  // Offset the race line just beyond the track edge so it sits outside the surface
+  const offset = halfWidth * 1.35;
+
+  cornerIndices.forEach((cStart, ci) => {
+    const cEnd = cornerIndices[(ci + 1) % cornerIndices.length];
+    const dist = (cEnd - cStart + n) % n;
+    const sd = segmentData.find(d => d.startNodeId === nodes[cStart].id);
+    if (!sd) return;
+
+    const useOuter = sd.raceLine === 'R';
+    const points: number[] = [];
+
+    for (let k = 0; k <= dist * samplesPerEdge; k++) {
+      const idx = (cStart * samplesPerEdge + k) % totalSamples;
+      const s = samples[idx];
+      if (useOuter) {
+        points.push(
+          s.point.x + s.normal.x * offset,
+          s.point.y + s.normal.y * offset,
+        );
+      } else {
+        points.push(
+          s.point.x - s.normal.x * offset,
+          s.point.y - s.normal.y * offset,
+        );
+      }
+    }
+
+    result.push({ points, side: sd.raceLine });
+  });
+
+  return result;
+}
+
+export interface SurfaceOverlay {
+  points: number[];     // closed polygon [x,y,...]
+  surfaceType: SurfaceType;
+  surfaceSide: SurfaceSide;
+  nodeId: string;
+}
+
+/** Colour config for surface types (used by canvas renderer too). */
+export const SURFACE_COLORS: Record<SurfaceType, { fill: string; opacity: number }> = {
+  plain:   { fill: 'transparent', opacity: 0 },
+  tunnel:  { fill: '#292524', opacity: 0.72 },
+  flooded: { fill: '#3b82f6', opacity: 0.45 },
+  gravel:  { fill: '#d97706', opacity: 0.50 },
+};
+
+/**
+ * Build filled polygon overlays for every non-plain space.
+ * `side` controls which lateral half is covered:
+ *   both    → inner edge to outer edge (full width)
+ *   inside  → center line to inner edge
+ *   outside → center line to outer edge
+ */
+export function buildSurfaceOverlays(
+  samples: SplineSample[],
+  nodes: TrackNode[],
+  samplesPerEdge: number,
+  halfWidth: number,
+): SurfaceOverlay[] {
+  if (samples.length === 0) return [];
+  const totalSamples = samples.length;
+
+  const result: SurfaceOverlay[] = [];
+
+  nodes.forEach((nd, ni) => {
+    if (nd.surfaceType === 'plain') return;
+    if (nd.isPhantom) return;
+
+    const startSample = ni * samplesPerEdge;
+    const side: SurfaceSide = nd.surfaceType === 'tunnel' ? 'both' : nd.surfaceSide;
+
+    const innerOffset = side === 'outside' ? 0 : -halfWidth;
+    const outerOffset = side === 'inside'  ? 0 :  halfWidth;
+
+    const innerPts: number[] = [];
+    const outerPts: number[] = [];
+
+    for (let k = 0; k <= samplesPerEdge; k++) {
+      const idx = (startSample + k) % totalSamples;
+      const s = samples[idx];
+      innerPts.push(s.point.x + s.normal.x * innerOffset, s.point.y + s.normal.y * innerOffset);
+      outerPts.push(s.point.x + s.normal.x * outerOffset, s.point.y + s.normal.y * outerOffset);
+    }
+
+    // Closed polygon: trace inner forward, outer backward
+    const reversed: number[] = [];
+    for (let i = outerPts.length - 2; i >= 0; i -= 2) {
+      reversed.push(outerPts[i], outerPts[i + 1]);
+    }
+
+    result.push({
+      points: [...innerPts, ...reversed],
+      surfaceType: nd.surfaceType,
+      surfaceSide: side,
+      nodeId: nd.id,
+    });
+  });
+
+  return result;
+}
+
+/**
+ * Build a single-space highlight polygon (used for hover preview in surface mode).
+ * Pass `side` to show only the left or right half; defaults to full width.
+ * Matches the offset convention used in buildSurfaceOverlays:
+ *   'outside' (Left)  → center (+normal) to left edge
+ *   'inside'  (Right) → right edge to center (-normal)
+ *   'both'           → full width
+ */
+export function buildSpacePolygon(
+  samples: SplineSample[],
+  nodeIndex: number,
+  samplesPerEdge: number,
+  halfWidth: number,
+  totalSamples: number,
+  side: SurfaceSide = 'both',
+): number[] {
+  const startSample = nodeIndex * samplesPerEdge;
+  const innerOffset = side === 'outside' ? 0 : -halfWidth;
+  const outerOffset = side === 'inside'  ? 0 :  halfWidth;
+  const innerPts: number[] = [];
+  const outerPts: number[] = [];
+
+  for (let k = 0; k <= samplesPerEdge; k++) {
+    const idx = (startSample + k) % totalSamples;
+    const s = samples[idx];
+    innerPts.push(s.point.x + s.normal.x * innerOffset, s.point.y + s.normal.y * innerOffset);
+    outerPts.push(s.point.x + s.normal.x * outerOffset, s.point.y + s.normal.y * outerOffset);
+  }
+
+  const reversed: number[] = [];
+  for (let i = outerPts.length - 2; i >= 0; i -= 2) {
+    reversed.push(outerPts[i], outerPts[i + 1]);
+  }
+  return [...innerPts, ...reversed];
+}
+
+export interface SpeedMarker {
+  stickStart: Point;
+  circleCenter: Point;
+  circleRadius: number;
+  speedLimit: number;
+}
+
+/**
+ * Build speed-limit lollipop markers for every corner node.
+ * Each marker is a circle on a short stick extending outward from the outer track edge.
+ */
+export function buildSpeedMarkers(
+  samples: SplineSample[],
+  nodes: TrackNode[],
+  samplesPerEdge: number,
+  halfWidth: number,
+): SpeedMarker[] {
+  if (samples.length === 0) return [];
+  const totalSamples = samples.length;
+  const circleRadius = halfWidth * 0.6;
+  const stickLength = halfWidth * 0.35;
+
+  return nodes
+    .map((nd, i) => ({ nd, i }))
+    .filter(({ nd }) => nd.isCorner)
+    .map(({ nd, i }) => {
+      const sampleIdx = (i * samplesPerEdge) % totalSamples;
+      const s = samples[sampleIdx];
+      const outerDist = halfWidth + stickLength;
+      return {
+        stickStart: {
+          x: s.point.x + s.normal.x * halfWidth,
+          y: s.point.y + s.normal.y * halfWidth,
+        },
+        circleCenter: {
+          x: s.point.x + s.normal.x * (outerDist + circleRadius),
+          y: s.point.y + s.normal.y * (outerDist + circleRadius),
+        },
+        circleRadius,
+        speedLimit: nd.speedLimit,
+      };
+    });
+}
+
+export interface CornerStripe {
+  /** Flat [x,y,...] arc along the outer track edge spanning 1 space before → corner → 1 space after. */
+  points: number[];
+}
+
+/**
+ * Build red corner-stripe arcs for every corner that is NOT part of a chicane sector.
+ * Each stripe runs along the outer track edge, covering the space before and after the corner.
+ */
+export function buildCornerStripes(
+  samples: SplineSample[],
+  nodes: TrackNode[],
+  samplesPerEdge: number,
+  segmentData: SegmentData[],
+  halfWidth: number,
+): CornerStripe[] {
+  if (samples.length === 0) return [];
+  const n = nodes.length;
+  const totalSamples = samples.length;
+
+  const cornerIndices = nodes
+    .map((nd, i) => (nd.isCorner ? i : -1))
+    .filter(i => i >= 0);
+  if (cornerIndices.length < 2) return [];
+
+  // Collect all corner node indices that border a chicane sector
+  const chicaneCornerSet = new Set<number>();
+  cornerIndices.forEach((cStart, ci) => {
+    const cEnd = cornerIndices[(ci + 1) % cornerIndices.length];
+    const sd = segmentData.find(d => d.startNodeId === nodes[cStart].id);
+    if (sd?.isChicane) {
+      chicaneCornerSet.add(cStart);
+      chicaneCornerSet.add(cEnd);
+    }
+  });
+
+  return cornerIndices
+    .filter(ci => !chicaneCornerSet.has(ci))
+    .map(ci => {
+      // Outer edge from (ci-1) through corner to (ci+1) — 2 edges = 2*SPE samples
+      const startSample = ((ci - 1 + n) % n) * samplesPerEdge;
+      const points: number[] = [];
+      for (let k = 0; k <= 2 * samplesPerEdge; k++) {
+        const idx = (startSample + k) % totalSamples;
+        const s = samples[idx];
+        points.push(
+          s.point.x + s.normal.x * halfWidth,
+          s.point.y + s.normal.y * halfWidth,
+        );
+      }
+      return { points };
+    });
+}
+
+export interface ChicaneStripe {
+  /** Flat [x,y,...] arc along the inner track edge. */
+  innerPoints: number[];
+  /** Flat [x,y,...] arc along the outer track edge. */
+  outerPoints: number[];
+}
+
+/**
+ * Build blue chicane-stripe arcs for sectors marked isChicane=true.
+ * Each stripe runs along BOTH track edges, from 1 space before the start corner
+ * to 1 space after the end corner.
+ */
+export function buildChicaneStripes(
+  samples: SplineSample[],
+  nodes: TrackNode[],
+  samplesPerEdge: number,
+  segmentData: SegmentData[],
+  halfWidth: number,
+): ChicaneStripe[] {
+  if (samples.length === 0) return [];
+  const n = nodes.length;
+  const totalSamples = samples.length;
+
+  const cornerIndices = nodes
+    .map((nd, i) => (nd.isCorner ? i : -1))
+    .filter(i => i >= 0);
+  if (cornerIndices.length < 2) return [];
+
+  const result: ChicaneStripe[] = [];
+
+  cornerIndices.forEach((cStart, ci) => {
+    const cEnd = cornerIndices[(ci + 1) % cornerIndices.length];
+    const sd = segmentData.find(d => d.startNodeId === nodes[cStart].id);
+    if (!sd?.isChicane) return;
+
+    // Arc from node (cStart-1) to node (cEnd+1) — spans (dist + 2) edges
+    const arcStartNode = (cStart - 1 + n) % n;
+    const arcEndNode   = (cEnd   + 1) % n;
+    const arcEdges     = (arcEndNode - arcStartNode + n) % n;
+    const startSample  = arcStartNode * samplesPerEdge;
+
+    const innerPoints: number[] = [];
+    const outerPoints: number[] = [];
+
+    for (let k = 0; k <= arcEdges * samplesPerEdge; k++) {
+      const idx = (startSample + k) % totalSamples;
+      const s = samples[idx];
+      innerPoints.push(
+        s.point.x - s.normal.x * halfWidth,
+        s.point.y - s.normal.y * halfWidth,
+      );
+      outerPoints.push(
+        s.point.x + s.normal.x * halfWidth,
+        s.point.y + s.normal.y * halfWidth,
+      );
+    }
+
+    result.push({ innerPoints, outerPoints });
+  });
+
+  return result;
+}
+
+export interface LegendsMarker {
+  stickStart: Point;
+  circleCenter: Point;
+  circleRadius: number;
+}
+
+/**
+ * Build Legends lollipop markers on the outside of the track for every
+ * node with isLegendsLine=true. Mirrors the speed-marker pattern.
+ */
+export function buildLegendsMarkers(
+  samples: SplineSample[],
+  nodes: TrackNode[],
+  samplesPerEdge: number,
+  halfWidth: number,
+): LegendsMarker[] {
+  if (samples.length === 0) return [];
+  const circleRadius = halfWidth * 0.6;
+  const stickLength  = halfWidth * 0.35;
+
+  return nodes
+    .map((nd, i) => ({ nd, i }))
+    .filter(({ nd }) => nd.isLegendsLine)
+    .map(({ i }) => {
+      const sampleIdx = Math.min(i * samplesPerEdge, samples.length - 1);
+      const s = samples[sampleIdx];
+      const innerDist = halfWidth + stickLength;
+      return {
+        stickStart: {
+          x: s.point.x - s.normal.x * halfWidth,
+          y: s.point.y - s.normal.y * halfWidth,
+        },
+        circleCenter: {
+          x: s.point.x - s.normal.x * (innerDist + circleRadius),
+          y: s.point.y - s.normal.y * (innerDist + circleRadius),
+        },
+        circleRadius,
+      };
+    });
+}
+
+/**
+ * Find all legends line positions (nodes with isLegendsLine=true).
+ */
+export function buildLegendsLines(
+  samples: SplineSample[],
+  nodes: TrackNode[],
+  samplesPerEdge: number,
+  halfWidth: number
+): { inner: Point; outer: Point }[] {
+  if (samples.length === 0) return [];
+  return nodes
+    .map((nd, i) => ({ nd, i }))
+    .filter(({ nd }) => nd.isLegendsLine)
+    .map(({ i }) => {
+      const sampleIdx = Math.min(i * samplesPerEdge, samples.length - 1);
+      const s = samples[sampleIdx];
+      return {
+        inner: {
+          x: s.point.x - s.normal.x * halfWidth,
+          y: s.point.y - s.normal.y * halfWidth,
+        },
+        outer: {
+          x: s.point.x + s.normal.x * halfWidth,
+          y: s.point.y + s.normal.y * halfWidth,
+        },
+      };
+    });
+}
+
+export interface CountdownMarkerVisual {
+  label: string;
+  aggression: number;
+  point: Point;
+  normal: Point;
+}
+
+/**
+ * Build visual positions for legends countdown markers (0–3) at the end of each sector.
+ * Each is placed on the inner edge of the track, at the midpoint of the relevant space.
+ * Counts backward by game-space position (skipping phantom nodes).
+ */
+export function buildCountdownMarkers(
+  samples: SplineSample[],
+  computed: ComputedSegment[],
+  segmentData: SegmentData[],
+  samplesPerEdge: number,
+  halfWidth: number,
+  nodes: TrackNode[],
+): CountdownMarkerVisual[] {
+  if (samples.length === 0) return [];
+  const result: CountdownMarkerVisual[] = [];
+  const innerDist = halfWidth * 1.5;
+  const nodeCount = nodes.length;
+
+  for (const seg of computed) {
+    const sd = segmentData.find(d => d.startNodeId === seg.startNodeId);
+    const countdowns = sd?.legendCountdowns ?? [0, 0, 0, 0];
+    const count = Math.min(4, seg.spaces);
+
+    for (let i = 0; i < count; i++) {
+      // Walk backward from endNodeIndex, counting only non-phantom source nodes,
+      // to find the (i+1)-th game space from the corner.
+      let gameSpacesFound = 0;
+      let nodeIdx = -1;
+      const arcLen = (seg.endNodeIndex - seg.startNodeIndex + nodeCount) % nodeCount;
+      for (let step = 1; step <= arcLen; step++) {
+        const candidateIdx = ((seg.endNodeIndex - step) + nodeCount) % nodeCount;
+        if (!nodes[candidateIdx].isPhantom) {
+          if (gameSpacesFound === i) {
+            nodeIdx = candidateIdx;
+            break;
+          }
+          gameSpacesFound++;
+        }
+      }
+      if (nodeIdx === -1) continue;
+
+      const midSampleIdx = (nodeIdx * samplesPerEdge + Math.floor(samplesPerEdge / 2)) % samples.length;
+      const s = samples[midSampleIdx];
+      result.push({
+        label: String(i),
+        aggression: countdowns[i] ?? 0,
+        point: {
+          x: s.point.x - s.normal.x * innerDist,
+          y: s.point.y - s.normal.y * innerDist,
+        },
+        normal: s.normal,
+      });
+    }
+  }
+  return result;
+}
+
+export interface PhantomOverlay {
+  points: number[]; // closed polygon [x,y,...]
+  nodeId: string;
+}
+
+/**
+ * Build filled polygon overlays for phantom spaces (source-based: the edge
+ * leaving a phantom node). Used to shade bridge-crossing zones in the editor.
+ */
+export function buildPhantomOverlays(
+  samples: SplineSample[],
+  nodes: TrackNode[],
+  samplesPerEdge: number,
+  halfWidth: number,
+): PhantomOverlay[] {
+  if (samples.length === 0) return [];
+  const totalSamples = samples.length;
+  const result: PhantomOverlay[] = [];
+
+  nodes.forEach((nd, ni) => {
+    if (!nd.isPhantom) return;
+
+    const startSample = ni * samplesPerEdge;
+    const innerPts: number[] = [];
+    const outerPts: number[] = [];
+
+    for (let k = 0; k <= samplesPerEdge; k++) {
+      const idx = (startSample + k) % totalSamples;
+      const s = samples[idx];
+      innerPts.push(s.point.x - s.normal.x * halfWidth, s.point.y - s.normal.y * halfWidth);
+      outerPts.push(s.point.x + s.normal.x * halfWidth, s.point.y + s.normal.y * halfWidth);
+    }
+
+    const reversed: number[] = [];
+    for (let i = outerPts.length - 2; i >= 0; i -= 2) {
+      reversed.push(outerPts[i], outerPts[i + 1]);
+    }
+
+    result.push({ points: [...innerPts, ...reversed], nodeId: nd.id });
+  });
+
+  return result;
+}
