@@ -159,6 +159,7 @@ interface EditorActions {
   setNodeFinishLine(id: string): void;
   clearFinishLine(): void;
   toggleNodeLegendsLine(id: string): void;
+  flipLollipopSide(id: string): void;
   setSpacesBetween(idA: string, idB: string, count: number): void;
 
   // Selection
@@ -465,6 +466,22 @@ export const useEditorStore = create<EditorStore>()(
         nodes: s.nodes.map(nd =>
           nd.id === id ? { ...nd, isLegendsLine: !nd.isLegendsLine } : nd
         ),
+      }));
+    },
+
+    flipLollipopSide(id) {
+      set(s => ({
+        nodes: s.nodes.map(nd => {
+          if (nd.id !== id) return nd;
+          const next = { ...nd };
+          if (nd.isCorner) {
+            next.cornerLollipopSide = (nd.cornerLollipopSide ?? 'outer') === 'outer' ? 'inner' : 'outer';
+          }
+          if (nd.isLegendsLine) {
+            next.legendsLollipopSide = (nd.legendsLollipopSide ?? 'inner') === 'inner' ? 'outer' : 'inner';
+          }
+          return next;
+        }),
       }));
     },
 

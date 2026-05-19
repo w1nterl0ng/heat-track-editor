@@ -61,6 +61,19 @@ export interface TrackNode {
    * Ignored when surfaceType is 'plain'. 'tunnel' is always rendered as 'both'.
    */
   surfaceSide: SurfaceSide;
+  /**
+   * Which edge of the track the speed-limit lollipop post extends from.
+   * Only meaningful when isCorner = true. Defaults to 'outer' when absent.
+   * Editor-only — not included in game export formats.
+   */
+  cornerLollipopSide?: 'inner' | 'outer';
+  /**
+   * Which edge of the track the legends lollipop post extends from.
+   * Only meaningful when isLegendsLine = true. Defaults to 'inner' when absent
+   * (matching the original placement on the inside of the track).
+   * Editor-only — not included in game export formats.
+   */
+  legendsLollipopSide?: 'inner' | 'outer';
 }
 
 /**

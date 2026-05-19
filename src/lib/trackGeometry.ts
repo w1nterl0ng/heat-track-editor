@@ -429,15 +429,17 @@ export function buildSpeedMarkers(
     .map(({ nd, i }) => {
       const sampleIdx = (i * samplesPerEdge) % totalSamples;
       const s = samples[sampleIdx];
-      const outerDist = halfWidth + stickLength;
+      const dir = (nd.cornerLollipopSide ?? 'outer') === 'outer' ? 1 : -1;
+      const edgeDist = halfWidth * dir;
+      const totalDist = (halfWidth + stickLength) * dir;
       return {
         stickStart: {
-          x: s.point.x + s.normal.x * halfWidth,
-          y: s.point.y + s.normal.y * halfWidth,
+          x: s.point.x + s.normal.x * edgeDist,
+          y: s.point.y + s.normal.y * edgeDist,
         },
         circleCenter: {
-          x: s.point.x + s.normal.x * (outerDist + circleRadius),
-          y: s.point.y + s.normal.y * (outerDist + circleRadius),
+          x: s.point.x + s.normal.x * (totalDist + circleRadius * dir),
+          y: s.point.y + s.normal.y * (totalDist + circleRadius * dir),
         },
         circleRadius,
         speedLimit: nd.speedLimit,
@@ -585,18 +587,22 @@ export function buildLegendsMarkers(
   return nodes
     .map((nd, i) => ({ nd, i }))
     .filter(({ nd }) => nd.isLegendsLine)
-    .map(({ i }) => {
+    .map(({ nd, i }) => {
       const sampleIdx = Math.min(i * samplesPerEdge, samples.length - 1);
       const s = samples[sampleIdx];
-      const innerDist = halfWidth + stickLength;
+      // Legends lollipops default to 'inner' to match the original placement
+      // (negative normal = inner edge). Flip to 'outer' via the I hotkey.
+      const dir = (nd.legendsLollipopSide ?? 'inner') === 'outer' ? 1 : -1;
+      const edgeDist = halfWidth * dir;
+      const totalDist = (halfWidth + stickLength) * dir;
       return {
         stickStart: {
-          x: s.point.x - s.normal.x * halfWidth,
-          y: s.point.y - s.normal.y * halfWidth,
+          x: s.point.x + s.normal.x * edgeDist,
+          y: s.point.y + s.normal.y * edgeDist,
         },
         circleCenter: {
-          x: s.point.x - s.normal.x * (innerDist + circleRadius),
-          y: s.point.y - s.normal.y * (innerDist + circleRadius),
+          x: s.point.x + s.normal.x * (totalDist + circleRadius * dir),
+          y: s.point.y + s.normal.y * (totalDist + circleRadius * dir),
         },
         circleRadius,
       };
