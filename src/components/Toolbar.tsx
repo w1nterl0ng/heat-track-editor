@@ -24,6 +24,8 @@ export const Toolbar: React.FC = () => {
     resetAll,
     _history,
     _future,
+    migrationNotice,
+    dismissMigrationNotice,
   } = useEditorStore();
 
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -87,7 +89,7 @@ export const Toolbar: React.FC = () => {
 
       <div style={styles.hintGroup}>
         <span style={styles.hint}>Shift+click node → select</span>
-        <span style={styles.hint}>C → corner · F → finish · L → legends · H → phantom</span>
+        <span style={styles.hint}>C → corner · F → finish · L → legends · H → phantom · I → flip lollipop</span>
         <span style={styles.hint}>Del → delete · 2 selected → type spaces</span>
         <span style={styles.hint}>D → condition markers</span>
       </div>
@@ -178,6 +180,14 @@ export const Toolbar: React.FC = () => {
         style={{ display: 'none' }}
         onChange={handleImageUpload}
       />
+
+      {/* Migration notice — shown after loading a track that had nodes updated */}
+      {migrationNotice && (
+        <div style={styles.migrationNotice}>
+          <span style={styles.migrationText}>ℹ {migrationNotice}</span>
+          <button onClick={dismissMigrationNotice} style={styles.migrationDismiss}>✕</button>
+        </div>
+      )}
     </div>
   );
 };
@@ -223,5 +233,21 @@ const styles: Record<string, React.CSSProperties> = {
     padding: '4px 12px', background: '#1e3a5f',
     border: '1px solid #3b82f6', borderRadius: 6,
     color: '#93c5fd', cursor: 'pointer', minWidth: 54, flexShrink: 0,
+  },
+  migrationNotice: {
+    position: 'fixed' as const,
+    bottom: 16, left: '50%', transform: 'translateX(-50%)',
+    display: 'flex', alignItems: 'center', gap: 10,
+    background: '#1e3a5f', border: '1px solid #3b82f6',
+    borderRadius: 8, padding: '8px 14px',
+    boxShadow: '0 4px 16px rgba(0,0,0,0.5)',
+    zIndex: 9999,
+    maxWidth: 480,
+  },
+  migrationText: { color: '#93c5fd', fontSize: 12, lineHeight: '16px' },
+  migrationDismiss: {
+    background: 'transparent', border: 'none',
+    color: '#475569', fontSize: 14, cursor: 'pointer',
+    flexShrink: 0, padding: '0 2px',
   },
 };

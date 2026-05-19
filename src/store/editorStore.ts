@@ -212,6 +212,9 @@ type StateSnapshot = Omit<EditorState, 'backgroundImage'>;
 interface EditorStore extends EditorState, EditorActions {
   _history: StateSnapshot[];
   _future: StateSnapshot[];
+  /** Transient message shown after a track is loaded and nodes were auto-migrated. Null when dismissed. */
+  migrationNotice: string | null;
+  dismissMigrationNotice(): void;
 }
 
 const DEFAULT_CANVAS = 1200;
@@ -286,6 +289,7 @@ export const useEditorStore = create<EditorStore>()(
     _history: [],
     _future: [],
     spaceInput: null,
+    migrationNotice: null,
     activeSurfaceType: 'gravel' as SurfaceType,
     activeSurfaceSide: 'both' as SurfaceSide,
 
@@ -659,6 +663,7 @@ export const useEditorStore = create<EditorStore>()(
     setSelectedSegment(id) { set({ selectedSegmentId: id }); },
 
     setSpaceInput(v) { set({ spaceInput: v }); },
+    dismissMigrationNotice() { set({ migrationNotice: null }); },
 
     async exportPackage() {
       const s = get();
@@ -737,11 +742,33 @@ export const useEditorStore = create<EditorStore>()(
         ...rawState,
         backgroundImage: bgDataUrl,
       };
+
+      // Normalise lollipop side fields — explicitly stamp defaults on nodes
+      // that were saved before this field existed, so the value is persisted
+      // next time the user saves.
+      let migratedCount = 0;
+      const migratedNodes = state.nodes.map(nd => {
+        const updates: Partial<TrackNode> = {};
+        if (nd.isCorner && nd.cornerLollipopSide === undefined) {
+          updates.cornerLollipopSide = 'outer';
+          migratedCount++;
+        }
+        if (nd.isLegendsLine && nd.legendsLollipopSide === undefined) {
+          updates.legendsLollipopSide = 'inner';
+          migratedCount++;
+        }
+        return Object.keys(updates).length > 0 ? { ...nd, ...updates } : nd;
+      });
+      if (migratedCount > 0) state.nodes = migratedNodes;
+
       set({
         ...state,
         _history: [],
         _future: [],
         spaceInput: null,
+        migrationNotice: migratedCount > 0
+          ? `${migratedCount} node${migratedCount !== 1 ? 's' : ''} updated with default lollipop positions — save the track to keep them.`
+          : null,
       });
     },
 
