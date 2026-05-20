@@ -29,6 +29,7 @@ export const App: React.FC = () => {
     removeNodesBetween,
     setNodeFinishLine,
     toggleNodeLegendsLine,
+    flipLollipopSide,
     toggleNodePhantom,
     clearSelection,
     activeSurfaceType,
@@ -121,6 +122,13 @@ export const App: React.FC = () => {
           e.preventDefault();
           if (selectedNodeIds[0]) toggleNodeLegendsLine(selectedNodeIds[0]);
           clearSelection();
+          return;
+        }
+
+        // I — flip lollipop side(s) on the selected node
+        if (e.key === 'i' || e.key === 'I') {
+          e.preventDefault();
+          if (selectedNodeIds[0]) flipLollipopSide(selectedNodeIds[0]);
           return;
         }
 

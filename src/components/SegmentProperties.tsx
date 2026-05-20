@@ -110,6 +110,27 @@ export const SegmentProperties: React.FC = () => {
         </div>
       </Field>
 
+      {/* Countdown numbers side */}
+      <Field label="Countdown numbers side">
+        <div style={styles.toggle}>
+          {(['inner', 'outer'] as const).map(side => (
+            <button
+              key={side}
+              onClick={() => {
+                snapshot();
+                updateSegmentData(sd.startNodeId, { countdownSide: side });
+              }}
+              style={{
+                ...styles.toggleBtn,
+                ...((sd.countdownSide ?? 'inner') === side ? styles.toggleBtnActive : {}),
+              }}
+            >
+              {side === 'inner' ? 'Inner' : 'Outer'}
+            </button>
+          ))}
+        </div>
+      </Field>
+
       {/* Corner speed limit */}
       <Field label="Corner speed limit (end of sector)">
         <input
@@ -135,6 +156,26 @@ export const SegmentProperties: React.FC = () => {
         )}
       </div>
 
+      {/* Corner lollipop side */}
+      {(() => {
+        const cornerNode = nodes[seg.endNodeIndex];
+        if (!cornerNode?.isCorner) return null;
+        const side = cornerNode.cornerLollipopSide ?? 'outer';
+        return (
+          <div style={styles.infoBox}>
+            <div style={styles.infoRow}>
+              <span style={styles.infoRowLabel}>Corner lollipop</span>
+              <span style={side === 'outer' ? styles.sideOuter : styles.sideInner}>
+                {side === 'outer' ? 'Outer' : 'Inner'}
+              </span>
+            </div>
+            <div style={styles.infoNote}>
+              Select the corner node and press <kbd style={styles.kbd}>I</kbd> to flip.
+            </div>
+          </div>
+        );
+      })()}
+
       {/* Legends line — read-only */}
       <div style={styles.infoBox}>
         <div style={styles.infoRow}>
@@ -149,6 +190,30 @@ export const SegmentProperties: React.FC = () => {
           </div>
         )}
       </div>
+
+      {/* Legends lollipop side */}
+      {(() => {
+        for (let k = 0; k <= seg.spaces; k++) {
+          const idx = (seg.startNodeIndex + k) % n;
+          const nd = nodes[idx];
+          if (!nd?.isLegendsLine) continue;
+          const side = nd.legendsLollipopSide ?? 'inner';
+          return (
+            <div style={styles.infoBox}>
+              <div style={styles.infoRow}>
+                <span style={styles.infoRowLabel}>Legends lollipop</span>
+                <span style={side === 'outer' ? styles.sideOuter : styles.sideInner}>
+                  {side === 'outer' ? 'Outer' : 'Inner'}
+                </span>
+              </div>
+              <div style={styles.infoNote}>
+                Select the legends node and press <kbd style={styles.kbd}>I</kbd> to flip.
+              </div>
+            </div>
+          );
+        }
+        return null;
+      })()}
 
       {/* Legends countdown markers */}
       {(() => {
@@ -249,6 +314,8 @@ const styles: Record<string, React.CSSProperties> = {
   infoRowLabel: { color: '#64748b', fontSize: 10, textTransform: 'uppercase' as const, letterSpacing: '0.05em' },
   finishPresent: { color: '#facc15', fontSize: 11, fontWeight: 600 },
   legendsPresent: { color: '#c084fc', fontSize: 11, fontWeight: 600 },
+  sideOuter: { color: '#38bdf8', fontSize: 11, fontWeight: 600 },
+  sideInner: { color: '#fb923c', fontSize: 11, fontWeight: 600 },
   infoAbsent: { color: '#334155', fontSize: 11 },
   infoNote: { color: '#475569', fontSize: 10, lineHeight: '14px', marginTop: 4 },
   kbd: {
