@@ -646,8 +646,30 @@ export interface CountdownMarkerVisual {
 }
 
 /**
+ * Helper: walk backward from endNodeIndex finding the nodeIdx for the i-th
+ * non-phantom game space from the corner (0 = space immediately before corner).
+ */
+function findSpaceNodeIdx(
+  seg: ComputedSegment,
+  spaceFromCorner: number,
+  nodes: TrackNode[],
+  nodeCount: number,
+): number {
+  let gameSpacesFound = 0;
+  const arcLen = (seg.endNodeIndex - seg.startNodeIndex + nodeCount) % nodeCount;
+  for (let step = 1; step <= arcLen; step++) {
+    const candidateIdx = ((seg.endNodeIndex - step) + nodeCount) % nodeCount;
+    if (!nodes[candidateIdx].isPhantom) {
+      if (gameSpacesFound === spaceFromCorner) return candidateIdx;
+      gameSpacesFound++;
+    }
+  }
+  return -1;
+}
+
+/**
  * Build visual positions for legends countdown markers (0–3) at the end of each sector.
- * Each is placed on the inner edge of the track, at the midpoint of the relevant space.
+ * Each is placed on the inner or outer edge depending on countdownSide.
  * Counts backward by game-space position (skipping phantom nodes).
  */
 export function buildCountdownMarkers(
@@ -660,30 +682,17 @@ export function buildCountdownMarkers(
 ): CountdownMarkerVisual[] {
   if (samples.length === 0) return [];
   const result: CountdownMarkerVisual[] = [];
-  const innerDist = halfWidth * 1.5;
+  const edgeDist = halfWidth * 1.5;
   const nodeCount = nodes.length;
 
   for (const seg of computed) {
     const sd = segmentData.find(d => d.startNodeId === seg.startNodeId);
     const countdowns = sd?.legendCountdowns ?? [0, 0, 0, 0];
     const count = Math.min(4, seg.spaces);
+    const dir = (sd?.countdownSide ?? 'inner') === 'outer' ? 1 : -1;
 
     for (let i = 0; i < count; i++) {
-      // Walk backward from endNodeIndex, counting only non-phantom source nodes,
-      // to find the (i+1)-th game space from the corner.
-      let gameSpacesFound = 0;
-      let nodeIdx = -1;
-      const arcLen = (seg.endNodeIndex - seg.startNodeIndex + nodeCount) % nodeCount;
-      for (let step = 1; step <= arcLen; step++) {
-        const candidateIdx = ((seg.endNodeIndex - step) + nodeCount) % nodeCount;
-        if (!nodes[candidateIdx].isPhantom) {
-          if (gameSpacesFound === i) {
-            nodeIdx = candidateIdx;
-            break;
-          }
-          gameSpacesFound++;
-        }
-      }
+      const nodeIdx = findSpaceNodeIdx(seg, i, nodes, nodeCount);
       if (nodeIdx === -1) continue;
 
       const midSampleIdx = (nodeIdx * samplesPerEdge + Math.floor(samplesPerEdge / 2)) % samples.length;
@@ -692,10 +701,59 @@ export function buildCountdownMarkers(
         label: String(i),
         aggression: countdowns[i] ?? 0,
         point: {
-          x: s.point.x - s.normal.x * innerDist,
-          y: s.point.y - s.normal.y * innerDist,
+          x: s.point.x + s.normal.x * edgeDist * dir,
+          y: s.point.y + s.normal.y * edgeDist * dir,
         },
         normal: s.normal,
+      });
+    }
+  }
+  return result;
+}
+
+export interface SectorCountdownNumber {
+  label: string;
+  point: Point;
+}
+
+/**
+ * Build plain space-count numbers for positions 4 and beyond in each sector.
+ * These count down from sector_length at the entry corner to 4 just past the
+ * legend diamond range. Placed on the inner or outer edge per countdownSide.
+ */
+export function buildSectorCountdownNumbers(
+  samples: SplineSample[],
+  computed: ComputedSegment[],
+  segmentData: SegmentData[],
+  samplesPerEdge: number,
+  halfWidth: number,
+  nodes: TrackNode[],
+): SectorCountdownNumber[] {
+  if (samples.length === 0) return [];
+  const result: SectorCountdownNumber[] = [];
+  const edgeDist = halfWidth * 1.5;
+  const nodeCount = nodes.length;
+
+  for (const seg of computed) {
+    const sd = segmentData.find(d => d.startNodeId === seg.startNodeId);
+    const dir = (sd?.countdownSide ?? 'inner') === 'outer' ? 1 : -1;
+    // Positions 4 through seg.spaces-1 (4 is just beyond the legend diamond range)
+    const start = 4;
+    const end = seg.spaces - 1;
+    if (end < start) continue;
+
+    for (let i = start; i <= end; i++) {
+      const nodeIdx = findSpaceNodeIdx(seg, i, nodes, nodeCount);
+      if (nodeIdx === -1) continue;
+
+      const midSampleIdx = (nodeIdx * samplesPerEdge + Math.floor(samplesPerEdge / 2)) % samples.length;
+      const s = samples[midSampleIdx];
+      result.push({
+        label: String(i),
+        point: {
+          x: s.point.x + s.normal.x * edgeDist * dir,
+          y: s.point.y + s.normal.y * edgeDist * dir,
+        },
       });
     }
   }

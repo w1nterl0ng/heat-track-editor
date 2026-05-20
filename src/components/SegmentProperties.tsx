@@ -110,6 +110,27 @@ export const SegmentProperties: React.FC = () => {
         </div>
       </Field>
 
+      {/* Countdown numbers side */}
+      <Field label="Countdown numbers side">
+        <div style={styles.toggle}>
+          {(['inner', 'outer'] as const).map(side => (
+            <button
+              key={side}
+              onClick={() => {
+                snapshot();
+                updateSegmentData(sd.startNodeId, { countdownSide: side });
+              }}
+              style={{
+                ...styles.toggleBtn,
+                ...((sd.countdownSide ?? 'inner') === side ? styles.toggleBtnActive : {}),
+              }}
+            >
+              {side === 'inner' ? 'Inner' : 'Outer'}
+            </button>
+          ))}
+        </div>
+      </Field>
+
       {/* Corner speed limit */}
       <Field label="Corner speed limit (end of sector)">
         <input

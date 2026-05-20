@@ -102,6 +102,12 @@ export interface SegmentData {
    * Applicable count is capped by the number of spaces in the sector.
    */
   legendCountdowns: number[];
+  /**
+   * Which side of the track all countdown numbers for this sector appear on
+   * (both the plain space-count numbers and the 0–3 legend diamond markers).
+   * Defaults to 'inner' when absent. Editor-only — not included in game exports.
+   */
+  countdownSide?: 'inner' | 'outer';
 }
 
 export interface TrackMeta {

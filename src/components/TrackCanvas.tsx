@@ -18,6 +18,7 @@ import {
   buildSpacePolygon,
   buildLegendsMarkers,
   buildCountdownMarkers,
+  buildSectorCountdownNumbers,
   buildPhantomOverlays,
   SURFACE_COLORS,
 } from '../lib/trackGeometry';
@@ -151,6 +152,13 @@ export const TrackCanvas: React.FC<Props> = ({ stageRef }) => {
   const countdownMarkerVisuals = useMemo(
     () => (samples.length >= 4
       ? buildCountdownMarkers(samples, computed, segmentData, SAMPLES_PER_EDGE, halfWidth, nodes)
+      : []),
+    [samples, computed, segmentData, halfWidth, nodes]
+  );
+
+  const sectorCountdownNumbers = useMemo(
+    () => (samples.length >= 4
+      ? buildSectorCountdownNumbers(samples, computed, segmentData, SAMPLES_PER_EDGE, halfWidth, nodes)
       : []),
     [samples, computed, segmentData, halfWidth, nodes]
   );
@@ -854,6 +862,32 @@ export const TrackCanvas: React.FC<Props> = ({ stageRef }) => {
                     fill="#ffffff"
                     stroke={fill}
                     strokeWidth={halfWidth * 0.025}
+                    listening={false}
+                  />
+                </Group>
+              );
+            })}
+
+            {/* Plain sector countdown numbers (4 … sector_length) */}
+            {sectorCountdownNumbers.map((m, i) => {
+              const S = halfWidth * 0.28;
+              return (
+                <Group key={`sn-${i}`} x={m.point.x} y={m.point.y} listening={false}>
+                  <Rect
+                    x={-S * 0.6} y={-S * 0.55}
+                    width={S * 1.2} height={S * 1.1}
+                    fill="rgba(0,0,0,0.45)"
+                    cornerRadius={S * 0.15}
+                  />
+                  <Text
+                    x={-S * 0.6} y={-S * 0.55}
+                    width={S * 1.2} height={S * 1.1}
+                    text={m.label}
+                    fill="#ffffff"
+                    fontSize={S * 0.65}
+                    fontStyle="bold"
+                    align="center"
+                    verticalAlign="middle"
                     listening={false}
                   />
                 </Group>
