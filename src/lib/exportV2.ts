@@ -28,7 +28,7 @@ import JSZip from 'jszip';
 import type { EditorState, TrackNode } from '../types/track';
 import { computeSegments } from '../store/editorStore';
 import { downloadFile } from './exportYaml';
-import { addTilesToZip } from './exportTiles';
+import { addTilesToZip, addPreviewToZip } from './exportTiles';
 
 // Coordinate space: same as exportJson.ts — normalised to world center, y-flipped.
 const EXPORT_SCALE = 20;
@@ -305,6 +305,7 @@ function buildManifest(
  * ZIP layout:
  *   manifest.json              ← TrackManifest with metadata + SHA-256 checksum
  *   track_{id}_v2.json         ← V2 track definition
+ *   preview_{id}.jpg           ← 780 px wide background preview (track selection screen)
  *   tiles/
  *     T_{id}_{col}_{row}.jpg
  *     ...
@@ -324,6 +325,7 @@ export async function exportV2Bundle(state: EditorState): Promise<void> {
 
   if (state.backgroundImage) {
     await addTilesToZip(state, zip.folder('tiles')!);
+    await addPreviewToZip(state, zip);
   }
 
   const blob = await zip.generateAsync({ type: 'blob' });

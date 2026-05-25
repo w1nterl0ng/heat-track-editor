@@ -84,8 +84,95 @@ export async function addTilesToZip(state: EditorState, zipFolder: JSZip): Promi
 }
 
 /**
- * Export each tile of the background as a 2048×2048 JPEG named
- * T_{trackId}_{col}_{row}.jpg, bundled into a single ZIP download.
+ * Render the entire background at 780 px wide (aspect-ratio preserving) and
+ * add it to a JSZip instance. Used by exportV2Bundle to embed the preview.
+ */
+export async function addPreviewToZip(state: EditorState, zip: JSZip): Promise<void> {
+  const {
+    backgroundImage, backgroundX, backgroundY,
+    backgroundScale, backgroundSize, tileColumns, tileRows, meta,
+  } = state;
+  if (!backgroundImage) return;
+
+  const worldW = tileColumns * TILE_SIZE;
+  const worldH = tileRows   * TILE_SIZE;
+  const PREVIEW_W = 780;
+  const PREVIEW_H = Math.round(PREVIEW_W * worldH / worldW);
+  const scaleOut  = PREVIEW_W / worldW;
+
+  const canvas = document.createElement('canvas');
+  canvas.width  = PREVIEW_W;
+  canvas.height = PREVIEW_H;
+  const ctx = canvas.getContext('2d')!;
+
+  ctx.fillStyle = '#000000';
+  ctx.fillRect(0, 0, PREVIEW_W, PREVIEW_H);
+
+  const img = await loadImage(backgroundImage);
+  const dstX = backgroundX * scaleOut;
+  const dstY = backgroundY * scaleOut;
+  const dstW = backgroundSize.width  * backgroundScale * scaleOut;
+  const dstH = backgroundSize.height * backgroundScale * scaleOut;
+
+  ctx.drawImage(
+    img,
+    0, 0, backgroundSize.width, backgroundSize.height,
+    dstX, dstY, dstW, dstH,
+  );
+
+  const dataUrl  = canvas.toDataURL('image/jpeg', 0.90);
+  const trackId  = meta.trackId || 'track';
+  zip.file(`preview_${trackId}.jpg`, dataUrlToBlob(dataUrl));
+}
+
+/**
+ * Export a standalone 780 px wide JPEG preview of the background image,
+ * covering the full world extent (tileColumns × tileRows tiles).
+ * Height is proportional to the world aspect ratio.
+ */
+export async function exportPreviewImage(state: EditorState): Promise<void> {
+  const {
+    backgroundImage, backgroundX, backgroundY,
+    backgroundScale, backgroundSize, tileColumns, tileRows, meta,
+  } = state;
+  if (!backgroundImage) return;
+
+  const worldW = tileColumns * TILE_SIZE;
+  const worldH = tileRows   * TILE_SIZE;
+  const PREVIEW_W = 780;
+  const PREVIEW_H = Math.round(PREVIEW_W * worldH / worldW);
+  const scaleOut  = PREVIEW_W / worldW;
+
+  const canvas = document.createElement('canvas');
+  canvas.width  = PREVIEW_W;
+  canvas.height = PREVIEW_H;
+  const ctx = canvas.getContext('2d')!;
+
+  ctx.fillStyle = '#000000';
+  ctx.fillRect(0, 0, PREVIEW_W, PREVIEW_H);
+
+  const img = await loadImage(backgroundImage);
+  const dstX = backgroundX * scaleOut;
+  const dstY = backgroundY * scaleOut;
+  const dstW = backgroundSize.width  * backgroundScale * scaleOut;
+  const dstH = backgroundSize.height * backgroundScale * scaleOut;
+
+  ctx.drawImage(
+    img,
+    0, 0, backgroundSize.width, backgroundSize.height,
+    dstX, dstY, dstW, dstH,
+  );
+
+  const trackId = meta.trackId || 'track';
+  const dataUrl = canvas.toDataURL('image/jpeg', 0.90);
+  const a = document.createElement('a');
+  a.href = dataUrl;
+  a.download = `preview_${trackId}.jpg`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+}
+
  *
  * The background image occupies world rect:
  *   [backgroundX, backgroundY,

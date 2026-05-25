@@ -11,7 +11,7 @@ import { exportYamlString, downloadFile } from '../lib/exportYaml';
 import { exportTrackLayoutJson } from '../lib/exportJson';
 import { exportV2Package, exportV2Bundle } from '../lib/exportV2';
 import { exportBoardImage } from '../lib/exportImage';
-import { exportBackgroundTiles } from '../lib/exportTiles';
+import { exportBackgroundTiles, exportPreviewImage } from '../lib/exportTiles';
 
 type Tab = 'track' | 'segments' | 'export';
 
@@ -83,6 +83,10 @@ export const Sidebar: React.FC<Props> = ({ stageRef }) => {
 
   const handleExportTiles = async () => {
     await exportBackgroundTiles(store);
+  };
+
+  const handleExportPreview = async () => {
+    await exportPreviewImage(store);
   };
 
   return (
@@ -221,6 +225,16 @@ export const Sidebar: React.FC<Props> = ({ stageRef }) => {
               badge={backgroundImage ? 'Ready' : 'No image'}
               badgeOk={!!backgroundImage}
               onClick={handleExportTiles}
+            />
+
+            <ExportButton
+              label={`preview_${meta.trackId}.jpg`}
+              description="780 px wide background · track selection screen"
+              icon="🖼"
+              disabled={!backgroundImage}
+              badge={backgroundImage ? 'Ready' : 'No image'}
+              badgeOk={!!backgroundImage}
+              onClick={handleExportPreview}
             />
 
             {/* Validation checklist */}
