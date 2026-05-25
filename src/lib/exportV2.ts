@@ -200,6 +200,8 @@ export function buildV2Object(state: EditorState): Record<string, unknown> {
     id:            meta.trackId,
     name:          meta.name,
     country:       meta.country,
+    designer:      meta.designer   || undefined,
+    trackEditor:   meta.trackEditor || undefined,
     defaultLaps:   meta.laps,
     startingHeat:  meta.heat,
     startingStress: meta.stress,

@@ -129,6 +129,10 @@ export interface TrackMeta {
   laps: number;
   heat: number;
   stress: number;
+  /** Name of the person who designed the physical track layout. */
+  designer: string;
+  /** Name of the person who created this digital track file. */
+  trackEditor: string;
 }
 
 export interface EditorState {

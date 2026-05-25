@@ -235,6 +235,8 @@ const defaultState: EditorState = {
     laps: 2,
     heat: 6,
     stress: 3,
+    designer: '',
+    trackEditor: '',
   },
   nodes: [],
   loopClosed: false,
