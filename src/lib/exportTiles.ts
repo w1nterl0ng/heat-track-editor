@@ -173,6 +173,9 @@ export async function exportPreviewImage(state: EditorState): Promise<void> {
   document.body.removeChild(a);
 }
 
+/**
+ * Export each tile of the background as a 2048×2048 JPEG named
+ * T_{trackId}_{col}_{row}.jpg, bundled into a single ZIP download.
  *
  * The background image occupies world rect:
  *   [backgroundX, backgroundY,
