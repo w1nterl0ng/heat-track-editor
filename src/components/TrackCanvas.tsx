@@ -74,6 +74,10 @@ export const TrackCanvas: React.FC<Props> = ({ stageRef }) => {
     updateConditionMarkerPosition,
     updateConditionMarkerRotation,
     commitConditionMarkerDrag,
+    weatherToken,
+    updateWeatherTokenPosition,
+    updateWeatherTokenScale,
+    commitWeatherTokenDrag,
     setBackgroundTransform,
     activeSurfaceSide,
   } = useEditorStore();
@@ -89,6 +93,7 @@ export const TrackCanvas: React.FC<Props> = ({ stageRef }) => {
   const [hoveredSpaceNodeId, setHoveredSpaceNodeId] = useState<string | null>(null);
   const hoveredSpaceNodeIdRef = useRef<string | null>(null);
   const rotateCommitTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const scaleCommitTimerRef  = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const isPanning = useRef(false);
   const panStart = useRef<{ mx: number; my: number; px: number; py: number } | null>(null);
@@ -951,6 +956,68 @@ export const TrackCanvas: React.FC<Props> = ({ stageRef }) => {
                 listening={false}
               />
             )}
+
+            {/* Weather token — fixed 17:10 aspect ratio, scroll to scale */}
+            {weatherToken && (() => {
+              const W = weatherToken.width;
+              const H = W * (10 / 17);
+              const strokeW = Math.max(1 / zoom, W * 0.012);
+              return (
+                <Group
+                  x={weatherToken.x}
+                  y={weatherToken.y}
+                  draggable={tool === 'condition'}
+                  onDragMove={e => updateWeatherTokenPosition(e.target.x(), e.target.y())}
+                  onDragEnd={e => {
+                    updateWeatherTokenPosition(e.target.x(), e.target.y());
+                    commitWeatherTokenDrag();
+                  }}
+                  onWheel={tool === 'condition' ? e => {
+                    e.evt.preventDefault();
+                    e.evt.stopPropagation();
+                    e.cancelBubble = true;
+                    const scrollValue = e.evt.deltaY !== 0 ? e.evt.deltaY : e.evt.deltaX;
+                    const factor = e.evt.shiftKey ? 0.01 : 0.05;
+                    const delta = scrollValue > 0 ? -factor : factor;
+                    updateWeatherTokenScale(weatherToken.width * (1 + delta));
+                    if (scaleCommitTimerRef.current) clearTimeout(scaleCommitTimerRef.current);
+                    scaleCommitTimerRef.current = setTimeout(() => commitWeatherTokenDrag(), 600);
+                  } : undefined}
+                >
+                  {/* Tile body */}
+                  <Rect
+                    x={-W / 2} y={-H / 2}
+                    width={W} height={H}
+                    fill="#334155"
+                    stroke="#94a3b8"
+                    strokeWidth={strokeW}
+                    cornerRadius={W * 0.03}
+                  />
+                  {/* Subtle inner border */}
+                  <Rect
+                    x={-W / 2 + strokeW * 2} y={-H / 2 + strokeW * 2}
+                    width={W - strokeW * 4} height={H - strokeW * 4}
+                    fill="transparent"
+                    stroke="#64748b"
+                    strokeWidth={strokeW * 0.6}
+                    cornerRadius={W * 0.02}
+                    listening={false}
+                  />
+                  {/* Label */}
+                  <Text
+                    x={-W / 2} y={-H / 2}
+                    width={W} height={H}
+                    text="W"
+                    fill="#94a3b8"
+                    fontSize={H * 0.5}
+                    fontStyle="bold"
+                    align="center"
+                    verticalAlign="middle"
+                    listening={false}
+                  />
+                </Group>
+              );
+            })()}
           </Group>
         </Layer>
 

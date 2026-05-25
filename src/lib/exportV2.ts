@@ -95,7 +95,7 @@ function normaliseNodes(
 
 export function buildV2Object(state: EditorState): Record<string, unknown> {
   const {
-    meta, nodes, segmentData, conditionMarkers,
+    meta, nodes, segmentData, conditionMarkers, weatherToken,
     tileColumns, tileRows, trackWidthPct,
   } = state;
 
@@ -218,6 +218,13 @@ export function buildV2Object(state: EditorState): Record<string, unknown> {
     ...(phantomIndices.length > 0 ? { phantomIndices } : {}),
   };
   if (markers.length > 0) obj.conditionMarkers = markers;
+  if (weatherToken) {
+    obj.weatherToken = {
+      x:     Math.round(weatherToken.x     * 100) / 100,
+      y:     Math.round(weatherToken.y     * 100) / 100,
+      width: Math.round(weatherToken.width * 100) / 100,
+    };
+  }
   return obj;
 }
 

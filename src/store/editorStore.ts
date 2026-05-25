@@ -11,6 +11,7 @@ import type {
   SurfaceType,
   SurfaceSide,
   ConditionMarker,
+  WeatherToken,
 } from '../types/track';
 import { sampleSpline } from '../lib/spline';
 
@@ -182,6 +183,13 @@ interface EditorActions {
   updateConditionMarkerRotation(id: string, rotation: number): void;
   commitConditionMarkerDrag(): void;
 
+  // Weather token
+  placeWeatherToken(): void;
+  removeWeatherToken(): void;
+  updateWeatherTokenPosition(x: number, y: number): void;
+  updateWeatherTokenScale(width: number): void;
+  commitWeatherTokenDrag(): void;
+
   // Sector data
   updateSegmentData(startNodeId: string, patch: Partial<Omit<SegmentData, 'id' | 'startNodeId'>>): void;
   updateCornerSpeedLimit(nodeId: string, speedLimit: number): void;
@@ -244,6 +252,7 @@ const defaultState: EditorState = {
   selectedNodeIds: [],
   selectedSegmentId: null,
   conditionMarkers: [],
+  weatherToken: null,
   tool: 'edit',
   canvasWidth: DEFAULT_CANVAS,
   canvasHeight: DEFAULT_CANVAS,
@@ -272,6 +281,7 @@ function snapState(s: EditorState): StateSnapshot {
     selectedNodeIds: [...s.selectedNodeIds],
     selectedSegmentId: s.selectedSegmentId,
     conditionMarkers: s.conditionMarkers.map(m => ({ ...m })),
+    weatherToken: s.weatherToken ? { ...s.weatherToken } : null,
     tool: s.tool,
     canvasWidth: s.canvasWidth,
     canvasHeight: s.canvasHeight,
@@ -593,6 +603,38 @@ export const useEditorStore = create<EditorStore>()(
     },
 
     commitConditionMarkerDrag() {
+      get().snapshot();
+    },
+
+    placeWeatherToken() {
+      const s = get();
+      // Default width: 3× half-track-width, positioned at current view centre
+      const halfWidth = (s.trackWidthPct / 100) * 2048 / 2;
+      const defaultWidth = halfWidth * 3;
+      const cx = s.canvasWidth  / 2 / s.zoom - s.panX / s.zoom;
+      const cy = s.canvasHeight / 2 / s.zoom - s.panY / s.zoom;
+      get().snapshot();
+      set({ weatherToken: { x: cx, y: cy, width: defaultWidth } });
+    },
+
+    removeWeatherToken() {
+      get().snapshot();
+      set({ weatherToken: null });
+    },
+
+    updateWeatherTokenPosition(x, y) {
+      set(s => s.weatherToken ? { weatherToken: { ...s.weatherToken, x, y } } : {});
+    },
+
+    updateWeatherTokenScale(width) {
+      const MIN_WIDTH = 50;
+      set(s => s.weatherToken
+        ? { weatherToken: { ...s.weatherToken, width: Math.max(MIN_WIDTH, width) } }
+        : {}
+      );
+    },
+
+    commitWeatherTokenDrag() {
       get().snapshot();
     },
 
