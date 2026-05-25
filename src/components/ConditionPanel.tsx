@@ -8,7 +8,10 @@ const COLORS = {
 };
 
 export const ConditionPanel: React.FC = () => {
-  const { nodes, segmentData, conditionMarkers, generateConditionMarkers } = useEditorStore();
+  const {
+    nodes, segmentData, conditionMarkers, generateConditionMarkers,
+    weatherToken, placeWeatherToken, removeWeatherToken,
+  } = useEditorStore();
 
   const computed = computeSegments(nodes);
   const sectorCount  = computed.filter(seg => {
@@ -19,7 +22,7 @@ export const ConditionPanel: React.FC = () => {
     const sd = segmentData.find(d => d.startNodeId === seg.startNodeId);
     return sd?.isChicane ?? false;
   }).length;
-  const cornerCount  = sectorCount; // one corner per non-chicane sector
+  const cornerCount  = sectorCount;
 
   const hasMarkers = conditionMarkers.length > 0;
 
@@ -51,6 +54,32 @@ export const ConditionPanel: React.FC = () => {
             {cornerCount} corner{cornerCount !== 1 ? 's' : ''}
           </span>
         </div>
+      )}
+
+      {/* Weather token */}
+      <div style={styles.sectionLabel}>Weather Token</div>
+      {weatherToken ? (
+        <div style={styles.weatherBox}>
+          <div style={styles.weatherRow}>
+            <span style={styles.weatherSwatch}>W</span>
+            <span style={styles.weatherCoords}>
+              {weatherToken.x.toFixed(0)}, {weatherToken.y.toFixed(0)}
+            </span>
+            <span style={styles.weatherSize}>
+              {weatherToken.width.toFixed(0)} px
+            </span>
+          </div>
+          <div style={styles.weatherHint}>
+            Drag to move · scroll wheel to scale (Shift = fine)
+          </div>
+          <button style={styles.removeBtn} onClick={removeWeatherToken}>
+            ✕ Remove weather token
+          </button>
+        </div>
+      ) : (
+        <button style={styles.generateBtn} onClick={placeWeatherToken}>
+          + Place weather token
+        </button>
       )}
 
       {/* Legend */}
@@ -141,4 +170,24 @@ const styles: Record<string, React.CSSProperties> = {
   },
   markerCoords: { color: '#475569', fontSize: 10, fontFamily: 'monospace', flex: 1 },
   markerRotation: { color: '#64748b', fontSize: 10, fontFamily: 'monospace', minWidth: 36, textAlign: 'right' as const },
+  weatherBox: {
+    marginBottom: 12, padding: '7px 8px',
+    background: '#0f172a', borderRadius: 4, border: '1px solid #334155',
+  },
+  weatherRow: { display: 'flex', alignItems: 'center', gap: 8, marginBottom: 4 },
+  weatherSwatch: {
+    minWidth: 28, textAlign: 'center' as const,
+    padding: '1px 3px', borderRadius: 2,
+    background: '#334155', color: '#94a3b8',
+    fontSize: 10, fontWeight: 700, flexShrink: 0,
+  },
+  weatherCoords: { color: '#475569', fontSize: 10, fontFamily: 'monospace', flex: 1 },
+  weatherSize: { color: '#64748b', fontSize: 10, fontFamily: 'monospace', minWidth: 48, textAlign: 'right' as const },
+  weatherHint: { color: '#334155', fontSize: 9, lineHeight: '13px', marginBottom: 6 },
+  removeBtn: {
+    width: '100%', padding: '5px 8px',
+    background: 'transparent', border: '1px solid #451a03',
+    borderRadius: 4, color: '#f97316',
+    fontSize: 10, cursor: 'pointer',
+  },
 };

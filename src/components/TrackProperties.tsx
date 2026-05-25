@@ -39,6 +39,22 @@ export const TrackProperties: React.FC = () => {
           onChange={e => setMeta({ country: e.target.value })}
         />
       </Field>
+      <Field label="Track Designer">
+        <input
+          style={styles.input}
+          value={meta.designer}
+          placeholder="Original layout designer"
+          onChange={e => setMeta({ designer: e.target.value })}
+        />
+      </Field>
+      <Field label="Track Editor">
+        <input
+          style={styles.input}
+          value={meta.trackEditor}
+          placeholder="Digital file author"
+          onChange={e => setMeta({ trackEditor: e.target.value })}
+        />
+      </Field>
 
       <div style={styles.row}>
         <div style={styles.halfField}>

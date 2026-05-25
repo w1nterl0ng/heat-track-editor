@@ -18,6 +18,18 @@ export interface ConditionMarker {
   rotation: number;
 }
 
+/**
+ * The weather condition token placed somewhere on the board.
+ * Fixed aspect ratio 17:10 (width:height). Scale is controlled by width;
+ * height = width * (10/17). Has no rotation — scale only.
+ */
+export interface WeatherToken {
+  x: number;
+  y: number;
+  /** Width in world-space pixels. Height = width × (10/17). */
+  width: number;
+}
+
 export type SurfaceType = 'plain' | 'tunnel' | 'flooded' | 'gravel';
 /** Which lateral half of the track the surface covers. Tunnel is always 'both'. */
 export type SurfaceSide = 'both' | 'inside' | 'outside';
@@ -117,10 +129,16 @@ export interface TrackMeta {
   laps: number;
   heat: number;
   stress: number;
+  /** Name of the person who designed the physical track layout. */
+  designer: string;
+  /** Name of the person who created this digital track file. */
+  trackEditor: string;
 }
 
 export interface EditorState {
   conditionMarkers: ConditionMarker[];
+  /** The weather token placed on the board. Null when not yet placed. */
+  weatherToken: WeatherToken | null;
   meta: TrackMeta;
   nodes: TrackNode[];
   /** True once the user has clicked the first node to close the loop. */

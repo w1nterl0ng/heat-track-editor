@@ -28,7 +28,7 @@ import JSZip from 'jszip';
 import type { EditorState, TrackNode } from '../types/track';
 import { computeSegments } from '../store/editorStore';
 import { downloadFile } from './exportYaml';
-import { addTilesToZip } from './exportTiles';
+import { addTilesToZip, addPreviewToZip } from './exportTiles';
 
 // Coordinate space: same as exportJson.ts — normalised to world center, y-flipped.
 const EXPORT_SCALE = 20;
@@ -95,7 +95,7 @@ function normaliseNodes(
 
 export function buildV2Object(state: EditorState): Record<string, unknown> {
   const {
-    meta, nodes, segmentData, conditionMarkers,
+    meta, nodes, segmentData, conditionMarkers, weatherToken,
     tileColumns, tileRows, trackWidthPct,
   } = state;
 
@@ -200,6 +200,8 @@ export function buildV2Object(state: EditorState): Record<string, unknown> {
     id:            meta.trackId,
     name:          meta.name,
     country:       meta.country,
+    designer:      meta.designer   || undefined,
+    trackEditor:   meta.trackEditor || undefined,
     defaultLaps:   meta.laps,
     startingHeat:  meta.heat,
     startingStress: meta.stress,
@@ -218,6 +220,13 @@ export function buildV2Object(state: EditorState): Record<string, unknown> {
     ...(phantomIndices.length > 0 ? { phantomIndices } : {}),
   };
   if (markers.length > 0) obj.conditionMarkers = markers;
+  if (weatherToken) {
+    obj.weatherToken = {
+      x:     Math.round(weatherToken.x     * 100) / 100,
+      y:     Math.round(weatherToken.y     * 100) / 100,
+      width: Math.round(weatherToken.width * 100) / 100,
+    };
+  }
   return obj;
 }
 
@@ -298,6 +307,7 @@ function buildManifest(
  * ZIP layout:
  *   manifest.json              ← TrackManifest with metadata + SHA-256 checksum
  *   track_{id}_v2.json         ← V2 track definition
+ *   preview_{id}.jpg           ← 780 px wide background preview (track selection screen)
  *   tiles/
  *     T_{id}_{col}_{row}.jpg
  *     ...
@@ -317,6 +327,7 @@ export async function exportV2Bundle(state: EditorState): Promise<void> {
 
   if (state.backgroundImage) {
     await addTilesToZip(state, zip.folder('tiles')!);
+    await addPreviewToZip(state, zip);
   }
 
   const blob = await zip.generateAsync({ type: 'blob' });
