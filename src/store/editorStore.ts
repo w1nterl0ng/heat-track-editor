@@ -11,7 +11,6 @@ import type {
   SurfaceType,
   SurfaceSide,
   ConditionMarker,
-  WeatherToken,
 } from '../types/track';
 import { sampleSpline } from '../lib/spline';
 
