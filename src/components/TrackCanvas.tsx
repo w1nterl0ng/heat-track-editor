@@ -957,10 +957,10 @@ export const TrackCanvas: React.FC<Props> = ({ stageRef }) => {
               />
             )}
 
-            {/* Weather token — fixed 17:10 aspect ratio, scroll to scale */}
+            {/* Weather token — fixed 525:429 aspect ratio, scroll to scale */}
             {weatherToken && (() => {
               const W = weatherToken.width;
-              const H = W * (10 / 17);
+              const H = W * (429 / 525);
               const strokeW = Math.max(1 / zoom, W * 0.012);
               return (
                 <Group

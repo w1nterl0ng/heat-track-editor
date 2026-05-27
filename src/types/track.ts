@@ -20,13 +20,13 @@ export interface ConditionMarker {
 
 /**
  * The weather condition token placed somewhere on the board.
- * Fixed aspect ratio 17:10 (width:height). Scale is controlled by width;
- * height = width * (10/17). Has no rotation — scale only.
+ * Fixed aspect ratio 525:429 (width:height). Scale is controlled by width;
+ * height = width * (429/525). Has no rotation — scale only.
  */
 export interface WeatherToken {
   x: number;
   y: number;
-  /** Width in world-space pixels. Height = width × (10/17). */
+  /** Width in world-space pixels. Height = width × (429/525). */
   width: number;
 }
 
