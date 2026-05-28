@@ -172,4 +172,6 @@ export interface EditorState {
   panY: number;
   showGrid: boolean;
   showSpline: boolean;
+  showConditionMarkers: boolean;
+  showLollipops: boolean;
 }

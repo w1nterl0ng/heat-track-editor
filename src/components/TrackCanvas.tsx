@@ -57,6 +57,8 @@ export const TrackCanvas: React.FC<Props> = ({ stageRef }) => {
     panY,
     showGrid,
     showSpline,
+    showConditionMarkers,
+    showLollipops,
     selectedNodeIds,
     selectedSegmentId,
     spaceInput,
@@ -581,8 +583,8 @@ export const TrackCanvas: React.FC<Props> = ({ stageRef }) => {
               </>
             )}
 
-            {/* Surface overlays */}
-            {surfaceOverlays.map(ov => {
+            {/* Surface overlays — toggled with track */}
+            {showSpline && surfaceOverlays.map(ov => {
               const cfg = SURFACE_COLORS[ov.surfaceType];
               return (
                 <Line
@@ -682,7 +684,7 @@ export const TrackCanvas: React.FC<Props> = ({ stageRef }) => {
             ))}
 
             {/* Speed markers — sizes in world space */}
-            {speedMarkers.map((m, i) => (
+            {showLollipops && speedMarkers.map((m, i) => (
               <Group key={`spd-${i}`} listening={false}>
                 <Line
                   points={[m.stickStart.x, m.stickStart.y, m.circleCenter.x, m.circleCenter.y]}
@@ -772,7 +774,7 @@ export const TrackCanvas: React.FC<Props> = ({ stageRef }) => {
             ))}
 
             {/* Legends lollipop markers */}
-            {legendsMarkers.map((m, i) => (
+            {showLollipops && legendsMarkers.map((m, i) => (
               <Group key={`lm-${i}`} listening={false}>
                 <Line
                   points={[m.stickStart.x, m.stickStart.y, m.circleCenter.x, m.circleCenter.y]}
@@ -799,7 +801,7 @@ export const TrackCanvas: React.FC<Props> = ({ stageRef }) => {
             ))}
 
             {/* Condition markers — world-space sizes */}
-            {conditionMarkers.map(m => {
+            {showConditionMarkers && conditionMarkers.map(m => {
               const size   = halfWidth * 1.0;
               const half   = size / 2;
               const armLen = halfWidth * 1.3;
@@ -958,7 +960,7 @@ export const TrackCanvas: React.FC<Props> = ({ stageRef }) => {
             )}
 
             {/* Weather token — fixed 525:429 aspect ratio, scroll to scale */}
-            {weatherToken && (() => {
+            {showConditionMarkers && weatherToken && (() => {
               const W = weatherToken.width;
               const H = W * (429 / 525);
               const strokeW = Math.max(1 / zoom, W * 0.012);

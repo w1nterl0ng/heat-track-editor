@@ -16,8 +16,12 @@ export const Toolbar: React.FC = () => {
     redo,
     showGrid,
     showSpline,
+    showConditionMarkers,
+    showLollipops,
     toggleGrid,
     toggleSpline,
+    toggleConditionMarkers,
+    toggleLollipops,
     setBackgroundImage,
     exportPackage,
     loadPackage,
@@ -106,11 +110,27 @@ export const Toolbar: React.FC = () => {
       </button>
       <button
         onClick={toggleSpline}
-        title="Toggle track lines"
+        title="Toggle track lines + surfaces"
         style={{ ...styles.toolBtn, ...(showSpline ? styles.toolBtnActive : {}) }}
       >
         <span style={styles.toolIcon}>〰</span>
         <span style={styles.toolLabel}>Track</span>
+      </button>
+      <button
+        onClick={toggleLollipops}
+        title="Toggle corner + legends lollipops"
+        style={{ ...styles.toolBtn, ...(showLollipops ? styles.toolBtnActive : {}) }}
+      >
+        <span style={styles.toolIcon}>⊙</span>
+        <span style={styles.toolLabel}>Lollis</span>
+      </button>
+      <button
+        onClick={toggleConditionMarkers}
+        title="Toggle condition markers + weather token"
+        style={{ ...styles.toolBtn, ...(showConditionMarkers ? styles.toolBtnActive : {}) }}
+      >
+        <span style={styles.toolIcon}>⛅</span>
+        <span style={styles.toolLabel}>Cond.</span>
       </button>
 
       <div style={styles.divider} />

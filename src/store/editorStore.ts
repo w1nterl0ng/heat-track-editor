@@ -143,6 +143,8 @@ interface EditorActions {
   setCanvasSize(width: number, height: number): void;
   toggleGrid(): void;
   toggleSpline(): void;
+  toggleConditionMarkers(): void;
+  toggleLollipops(): void;
   toggleTileGrid(): void;
 
   // Build phase
@@ -262,6 +264,8 @@ const defaultState: EditorState = {
   panY: 0,
   showGrid: true,
   showSpline: true,
+  showConditionMarkers: true,
+  showLollipops: true,
 };
 
 function snapState(s: EditorState): StateSnapshot {
@@ -291,6 +295,8 @@ function snapState(s: EditorState): StateSnapshot {
     panY: s.panY,
     showGrid: s.showGrid,
     showSpline: s.showSpline,
+    showConditionMarkers: s.showConditionMarkers,
+    showLollipops: s.showLollipops,
   };
 }
 
@@ -341,6 +347,8 @@ export const useEditorStore = create<EditorStore>()(
     setBackgroundOpacity(opacity) { set({ backgroundOpacity: Math.max(0, Math.min(1, opacity)) }); },
     toggleGrid() { set(s => ({ showGrid: !s.showGrid })); },
     toggleSpline() { set(s => ({ showSpline: !s.showSpline })); },
+    toggleConditionMarkers() { set(s => ({ showConditionMarkers: !s.showConditionMarkers })); },
+    toggleLollipops() { set(s => ({ showLollipops: !s.showLollipops })); },
     toggleTileGrid() { set(s => ({ showTileGrid: !s.showTileGrid })); },
     setZoom(z) { set({ zoom: Math.max(0.1, Math.min(5, z)) }); },
     setPan(x, y) { set({ panX: x, panY: y }); },
@@ -403,9 +411,19 @@ export const useEditorStore = create<EditorStore>()(
     toggleNodeCorner(id) {
       get().snapshot();
       set(s => {
-        const nodes = s.nodes.map(nd =>
-          nd.id === id ? { ...nd, isCorner: !nd.isCorner } : nd
-        );
+        const nodes = s.nodes.map(nd => {
+          if (nd.id !== id) return nd;
+          const turningOn = !nd.isCorner;
+          const updates: Partial<TrackNode> = { isCorner: turningOn };
+          if (turningOn) {
+            // If a legends lollipop side is already set, default corner to the opposite
+            const legendsSide = nd.legendsLollipopSide ?? 'inner';
+            updates.cornerLollipopSide = legendsSide === 'inner' ? 'outer' : 'inner';
+          } else {
+            updates.cornerLollipopSide = undefined;
+          }
+          return { ...nd, ...updates };
+        });
         return { nodes, segmentData: syncSegmentData(nodes, s.segmentData) };
       });
     },
@@ -478,9 +496,19 @@ export const useEditorStore = create<EditorStore>()(
 
     toggleNodeLegendsLine(id) {
       set(s => ({
-        nodes: s.nodes.map(nd =>
-          nd.id === id ? { ...nd, isLegendsLine: !nd.isLegendsLine } : nd
-        ),
+        nodes: s.nodes.map(nd => {
+          if (nd.id !== id) return nd;
+          const turningOn = !nd.isLegendsLine;
+          const updates: Partial<TrackNode> = { isLegendsLine: turningOn };
+          if (turningOn) {
+            // If a corner lollipop side is already set, default legends to the opposite
+            const cornerSide = nd.cornerLollipopSide ?? 'outer';
+            updates.legendsLollipopSide = cornerSide === 'outer' ? 'inner' : 'outer';
+          } else {
+            updates.legendsLollipopSide = undefined;
+          }
+          return { ...nd, ...updates };
+        }),
       }));
     },
 
