@@ -129,6 +129,7 @@ export const App: React.FC = () => {
         if (e.key === 'i' || e.key === 'I') {
           e.preventDefault();
           if (selectedNodeIds[0]) flipLollipopSide(selectedNodeIds[0]);
+          clearSelection();
           return;
         }
 
