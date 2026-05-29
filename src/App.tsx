@@ -4,6 +4,7 @@ import { Toolbar } from './components/Toolbar';
 import { TrackCanvas } from './components/TrackCanvas';
 import { Sidebar } from './components/Sidebar';
 import { EmptyHint } from './components/EmptyHint';
+import { ChecklistPanel } from './components/ChecklistPanel';
 import { useEditorStore } from './store/editorStore';
 
 export const App: React.FC = () => {
@@ -35,6 +36,7 @@ export const App: React.FC = () => {
     activeSurfaceType,
     activeSurfaceSide,
     setActiveSurface,
+    checklistOpen,
   } = useEditorStore();
 
   // Resize canvas to always fill the available workspace
@@ -193,6 +195,7 @@ export const App: React.FC = () => {
       <Toolbar />
       <div style={styles.workspace}>
         <div style={styles.canvasWrapper} ref={canvasContainerRef}>
+          {checklistOpen && <ChecklistPanel />}
           <TrackCanvas stageRef={stageRef} />
           <EmptyHint />
           <ZoomIndicator />

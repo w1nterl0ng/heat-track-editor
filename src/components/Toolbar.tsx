@@ -1,6 +1,8 @@
 import React, { useRef, useState, useEffect } from 'react';
 import { useEditorStore } from '../store/editorStore';
 
+const CHECKLIST_TOTAL = 21; // keep in sync with ChecklistPanel TOTAL
+
 const TOOLS = [
   { mode: 'edit' as const,       label: 'Edit',      icon: '↖', title: 'Edit track nodes (V)',        shortcut: 'V' },
   { mode: 'surface' as const,    label: 'Surface',   icon: '⬛', title: 'Paint space surfaces (S)',    shortcut: 'S' },
@@ -30,7 +32,12 @@ export const Toolbar: React.FC = () => {
     _future,
     migrationNotice,
     dismissMigrationNotice,
+    checklistOpen,
+    toggleChecklist,
+    checklistItems,
   } = useEditorStore();
+
+  const checklistDone = Object.values(checklistItems).filter(Boolean).length;
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const pkgInputRef = useRef<HTMLInputElement>(null);
@@ -70,6 +77,24 @@ export const Toolbar: React.FC = () => {
         <span style={styles.brandIcon}>🏎</span>
         <span style={styles.brandText}>Heat Track Editor</span>
       </div>
+
+      <div style={styles.divider} />
+
+      {/* Guide / checklist toggle */}
+      <button
+        onClick={toggleChecklist}
+        title="Toggle track creation checklist"
+        style={{ ...styles.toolBtn, ...(checklistOpen ? styles.toolBtnActive : {}), position: 'relative' }}
+      >
+        <span style={styles.toolIcon}>☑</span>
+        <span style={styles.toolLabel}>Guide</span>
+        <span style={{
+          ...styles.toolShortcut,
+          color: checklistDone === CHECKLIST_TOTAL ? '#22c55e' : '#64748b',
+        }}>
+          {checklistDone}/{CHECKLIST_TOTAL}
+        </span>
+      </button>
 
       <div style={styles.divider} />
 
