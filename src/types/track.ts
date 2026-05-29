@@ -174,4 +174,10 @@ export interface EditorState {
   showSpline: boolean;
   showConditionMarkers: boolean;
   showLollipops: boolean;
+  /**
+   * Per-item checked state for the track creation checklist.
+   * Keys are static item IDs defined in ChecklistPanel.tsx.
+   * Persisted in .hte but excluded from all game export formats.
+   */
+  checklistItems: Record<string, boolean>;
 }

@@ -224,6 +224,11 @@ interface EditorStore extends EditorState, EditorActions {
   /** Transient message shown after a track is loaded and nodes were auto-migrated. Null when dismissed. */
   migrationNotice: string | null;
   dismissMigrationNotice(): void;
+  /** Whether the checklist panel is open. Transient — not persisted. */
+  checklistOpen: boolean;
+  toggleChecklist(): void;
+  toggleChecklistItem(id: string): void;
+  resetChecklist(): void;
 }
 
 const DEFAULT_CANVAS = 1200;
@@ -266,6 +271,7 @@ const defaultState: EditorState = {
   showSpline: true,
   showConditionMarkers: true,
   showLollipops: true,
+  checklistItems: {},
 };
 
 function snapState(s: EditorState): StateSnapshot {
@@ -297,6 +303,7 @@ function snapState(s: EditorState): StateSnapshot {
     showSpline: s.showSpline,
     showConditionMarkers: s.showConditionMarkers,
     showLollipops: s.showLollipops,
+    checklistItems: { ...s.checklistItems },
   };
 }
 
@@ -307,6 +314,7 @@ export const useEditorStore = create<EditorStore>()(
     _future: [],
     spaceInput: null,
     migrationNotice: null,
+    checklistOpen: false,
     activeSurfaceType: 'gravel' as SurfaceType,
     activeSurfaceSide: 'both' as SurfaceSide,
 
@@ -735,6 +743,13 @@ export const useEditorStore = create<EditorStore>()(
 
     setSpaceInput(v) { set({ spaceInput: v }); },
     dismissMigrationNotice() { set({ migrationNotice: null }); },
+    toggleChecklist() { set(s => ({ checklistOpen: !s.checklistOpen })); },
+    toggleChecklistItem(id) {
+      set(s => ({
+        checklistItems: { ...s.checklistItems, [id]: !s.checklistItems[id] },
+      }));
+    },
+    resetChecklist() { set({ checklistItems: {} }); },
 
     async exportPackage() {
       const s = get();
