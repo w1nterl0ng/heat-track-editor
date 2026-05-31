@@ -11,10 +11,46 @@ import type {
   SurfaceType,
   SurfaceSide,
   ConditionMarker,
+  DesignerSegment,
 } from '../types/track';
 import { sampleSpline } from '../lib/spline';
+import {
+  DEFAULT_IDEAL_SPACE_LENGTH_PX,
+  DEFAULT_SPACE_LENGTH_MIN_RATIO,
+  DEFAULT_SPACE_LENGTH_MAX_RATIO,
+} from '../lib/designerCurve';
+import {
+  makeLayoutNode,
+  commitNewSegment,
+  commitClosingSegment,
+  rebuildOpenSegmentInNodes,
+  rebuildClosingSegmentInNodes,
+  findNearestSegment,
+  stripNodeGameData,
+  distanceToSegment,
+  splitDesignerSegment,
+} from '../lib/designerLayout';
 
 const SAMPLES_PER_EDGE_CM = 16;
+
+/** World-space click tolerance for snapping closed to the first anchor. */
+function layoutCloseRadius(zoom: number): number {
+  return 48 / Math.max(zoom, 0.1);
+}
+
+function canCloseLayoutLoop(
+  s: EditorState,
+  layoutActiveAnchorId: string | null,
+): boolean {
+  const firstId = s.nodes[0]?.id;
+  return (
+    !s.loopClosed &&
+    !!layoutActiveAnchorId &&
+    s.designerSegments.length >= 2 &&
+    !!firstId &&
+    layoutActiveAnchorId !== firstId
+  );
+}
 
 function uid(): string {
   return Math.random().toString(36).slice(2, 10);
@@ -214,6 +250,22 @@ interface EditorActions {
   loadPackage(file: File): Promise<void>;
 
   resetAll(): void;
+
+  // Layout designer (backbone authoring)
+  layoutActiveAnchorId: string | null;
+  layoutPreviewBend: number;
+  layoutClick(x: number, y: number): void;
+  layoutCloseLoop(): void;
+  layoutSetPreviewBend(bend: number): void;
+  layoutResetBend(): void;
+  layoutSplitSegment(segmentId: string, x: number, y: number): void;
+  layoutSelectSegment(id: string | null): void;
+  layoutUpdateSegmentBend(id: string, bendOffset: number, recordHistory?: boolean): void;
+  layoutUpdateAnchorPosition(id: string, x: number, y: number): void;
+  setIdealSpaceLength(px: number): void;
+  lockBackbone(): void;
+  unlockBackbone(): void;
+  getClosingSegmentId(): string | null;
 }
 
 type StateSnapshot = Omit<EditorState, 'backgroundImage'>;
@@ -261,7 +313,13 @@ const defaultState: EditorState = {
   selectedSegmentId: null,
   conditionMarkers: [],
   weatherToken: null,
-  tool: 'edit',
+  tool: 'layout',
+  backbonePhase: 'design',
+  designerSegments: [],
+  idealSpaceLengthPx: DEFAULT_IDEAL_SPACE_LENGTH_PX,
+  spaceLengthMinRatio: DEFAULT_SPACE_LENGTH_MIN_RATIO,
+  spaceLengthMaxRatio: DEFAULT_SPACE_LENGTH_MAX_RATIO,
+  selectedDesignerSegmentId: null,
   canvasWidth: DEFAULT_CANVAS,
   canvasHeight: DEFAULT_CANVAS,
   zoom: 1,
@@ -304,7 +362,18 @@ function snapState(s: EditorState): StateSnapshot {
     showConditionMarkers: s.showConditionMarkers,
     showLollipops: s.showLollipops,
     checklistItems: { ...s.checklistItems },
+    backbonePhase: s.backbonePhase,
+    designerSegments: s.designerSegments.map(seg => ({ ...seg })),
+    idealSpaceLengthPx: s.idealSpaceLengthPx,
+    spaceLengthMinRatio: s.spaceLengthMinRatio,
+    spaceLengthMaxRatio: s.spaceLengthMaxRatio,
+    selectedDesignerSegmentId: s.selectedDesignerSegmentId,
   };
+}
+
+function getClosingSegment(segments: DesignerSegment[], firstNodeId: string | undefined): DesignerSegment | null {
+  if (!firstNodeId) return null;
+  return segments.find(seg => seg.endNodeId === firstNodeId) ?? null;
 }
 
 export const useEditorStore = create<EditorStore>()(
@@ -317,6 +386,14 @@ export const useEditorStore = create<EditorStore>()(
     checklistOpen: false,
     activeSurfaceType: 'gravel' as SurfaceType,
     activeSurfaceSide: 'both' as SurfaceSide,
+    layoutActiveAnchorId: null,
+    layoutPreviewBend: 0,
+
+    getClosingSegmentId() {
+      const s = get();
+      const closing = getClosingSegment(s.designerSegments, s.nodes[0]?.id);
+      return closing?.id ?? null;
+    },
 
     snapshot() {
       const snap = snapState(get());
@@ -349,7 +426,12 @@ export const useEditorStore = create<EditorStore>()(
       }));
     },
 
-    setTool(tool) { set({ tool }); },
+    setTool(tool) {
+      const { backbonePhase } = get();
+      if (backbonePhase === 'design' && tool !== 'layout' && tool !== 'background') return;
+      if (backbonePhase === 'locked' && tool === 'layout') return;
+      set({ tool });
+    },
     setMeta(meta) { set(s => ({ meta: { ...s.meta, ...meta } })); },
     setTrackWidth(pct) { set({ trackWidthPct: pct }); },
     setBackgroundOpacity(opacity) { set({ backgroundOpacity: Math.max(0, Math.min(1, opacity)) }); },
@@ -829,6 +911,17 @@ export const useEditorStore = create<EditorStore>()(
         backgroundImage: bgDataUrl,
       };
 
+      // Legacy packages without layout data are treated as locked backbones.
+      if (!rawState.backbonePhase) {
+        state.backbonePhase = state.nodes.length > 0 && state.loopClosed ? 'locked' : 'design';
+      }
+      if (!rawState.designerSegments) {
+        state.designerSegments = [];
+      }
+      if (rawState.backbonePhase === 'locked' || (state.backbonePhase === 'locked' && !state.tool)) {
+        state.tool = 'edit';
+      }
+
       // Normalise lollipop side fields — explicitly stamp defaults on nodes
       // that were saved before this field existed, so the value is persisted
       // next time the user saves.
@@ -859,7 +952,245 @@ export const useEditorStore = create<EditorStore>()(
     },
 
     resetAll() {
-      set({ ...defaultState, _history: [], _future: [], spaceInput: null });
+      set({
+        ...defaultState,
+        _history: [],
+        _future: [],
+        spaceInput: null,
+        layoutActiveAnchorId: null,
+        layoutPreviewBend: 0,
+      });
+    },
+
+    layoutClick(x, y) {
+      const s = get();
+      if (s.backbonePhase !== 'design' || s.tool !== 'layout') return;
+
+      const firstNode = s.nodes[0];
+
+      if (s.nodes.length === 0) {
+        get().snapshot();
+        const node = makeLayoutNode(x, y);
+        set({
+          nodes: [node],
+          layoutActiveAnchorId: node.id,
+          layoutPreviewBend: 0,
+          selectedDesignerSegmentId: null,
+        });
+        return;
+      }
+
+      if (
+        canCloseLayoutLoop(s, s.layoutActiveAnchorId) &&
+        firstNode &&
+        Math.hypot(x - firstNode.x, y - firstNode.y) < layoutCloseRadius(s.zoom)
+      ) {
+        get().layoutCloseLoop();
+        return;
+      }
+
+      if (s.layoutActiveAnchorId && !s.loopClosed) {
+        get().snapshot();
+        const { nodes, segment } = commitNewSegment(
+          s.nodes,
+          s.layoutActiveAnchorId,
+          x,
+          y,
+          s.layoutPreviewBend,
+          s.idealSpaceLengthPx,
+          s.spaceLengthMinRatio,
+          s.spaceLengthMaxRatio,
+          uid(),
+        );
+        set({
+          nodes,
+          designerSegments: [...s.designerSegments, segment],
+          layoutActiveAnchorId: segment.endNodeId,
+          layoutPreviewBend: 0,
+          selectedDesignerSegmentId: null,
+        });
+        return;
+      }
+
+      const nearest = findNearestSegment(s.nodes, s.designerSegments, x, y);
+      if (nearest) {
+        const threshold = (s.trackWidthPct / 100) * 2048 + 20 / s.zoom;
+        const a = s.nodes.find(n => n.id === nearest.startNodeId);
+        const b = s.nodes.find(n => n.id === nearest.endNodeId);
+        if (a && b && distanceToSegment(a, b, nearest.bendOffset, x, y) < threshold) {
+          set({ selectedDesignerSegmentId: nearest.id });
+          return;
+        }
+      }
+      set({ selectedDesignerSegmentId: null });
+    },
+
+    layoutCloseLoop() {
+      const s = get();
+      if (s.backbonePhase !== 'design' || s.tool !== 'layout') return;
+      if (!canCloseLayoutLoop(s, s.layoutActiveAnchorId)) return;
+
+      const firstNode = s.nodes[0];
+      if (!firstNode || !s.layoutActiveAnchorId) return;
+
+      get().snapshot();
+      const { nodes, segment } = commitClosingSegment(
+        s.nodes,
+        s.layoutActiveAnchorId,
+        firstNode.id,
+        s.layoutPreviewBend,
+        s.idealSpaceLengthPx,
+        s.spaceLengthMinRatio,
+        s.spaceLengthMaxRatio,
+        uid(),
+      );
+      set({
+        nodes,
+        designerSegments: [...s.designerSegments, segment],
+        loopClosed: true,
+        layoutActiveAnchorId: null,
+        layoutPreviewBend: 0,
+        selectedDesignerSegmentId: null,
+      });
+    },
+
+    layoutSetPreviewBend(bend) {
+      set({ layoutPreviewBend: bend });
+    },
+
+    layoutResetBend() {
+      const s = get();
+      if (s.backbonePhase !== 'design') return;
+      if (s.selectedDesignerSegmentId) {
+        const seg = s.designerSegments.find(d => d.id === s.selectedDesignerSegmentId);
+        if (seg && seg.bendOffset !== 0) {
+          get().layoutUpdateSegmentBend(s.selectedDesignerSegmentId, 0);
+        }
+        return;
+      }
+      if (s.layoutActiveAnchorId && s.layoutPreviewBend !== 0) {
+        set({ layoutPreviewBend: 0 });
+      }
+    },
+
+    layoutSplitSegment(segmentId, x, y) {
+      const s = get();
+      if (s.backbonePhase !== 'design' || s.tool !== 'layout') return;
+      if (s.layoutActiveAnchorId && !s.loopClosed) return;
+
+      get().snapshot();
+      const closingId = get().getClosingSegmentId();
+      const result = splitDesignerSegment(
+        s.nodes,
+        s.designerSegments,
+        segmentId,
+        x,
+        y,
+        closingId,
+        s.idealSpaceLengthPx,
+        s.spaceLengthMinRatio,
+        s.spaceLengthMaxRatio,
+        uid(),
+        uid(),
+      );
+      if (!result) return;
+
+      const secondSeg = result.segments.find(
+        seg => seg.startNodeId === result.newAnchorId,
+      );
+
+      set({
+        nodes: result.nodes,
+        designerSegments: result.segments,
+        selectedDesignerSegmentId: secondSeg?.id ?? null,
+        layoutActiveAnchorId: s.loopClosed ? null : result.newAnchorId,
+        layoutPreviewBend: 0,
+      });
+    },
+
+    layoutSelectSegment(id) {
+      set({ selectedDesignerSegmentId: id });
+    },
+
+    layoutUpdateSegmentBend(id, bendOffset, recordHistory = true) {
+      const s = get();
+      const seg = s.designerSegments.find(d => d.id === id);
+      if (!seg) return;
+      if (recordHistory) get().snapshot();
+      const closingId = get().getClosingSegmentId();
+      const updatedSeg = { ...seg, bendOffset };
+      const segments = s.designerSegments.map(d => d.id === id ? updatedSeg : d);
+      let nodes = s.nodes;
+      if (closingId && id === closingId) {
+        nodes = rebuildClosingSegmentInNodes(nodes, updatedSeg, s.idealSpaceLengthPx, s.spaceLengthMinRatio, s.spaceLengthMaxRatio);
+      } else {
+        nodes = rebuildOpenSegmentInNodes(nodes, updatedSeg, s.idealSpaceLengthPx, s.spaceLengthMinRatio, s.spaceLengthMaxRatio);
+      }
+      set({ nodes, designerSegments: segments });
+    },
+
+    layoutUpdateAnchorPosition(id, x, y) {
+      const s = get();
+      if (s.backbonePhase !== 'design') return;
+      const nodes = s.nodes.map(nd => nd.id === id ? { ...nd, x, y } : nd);
+      const closingId = get().getClosingSegmentId();
+      let rebuilt = nodes;
+      for (const seg of s.designerSegments) {
+        if (closingId && seg.id === closingId) {
+          rebuilt = rebuildClosingSegmentInNodes(rebuilt, seg, s.idealSpaceLengthPx, s.spaceLengthMinRatio, s.spaceLengthMaxRatio);
+        } else {
+          rebuilt = rebuildOpenSegmentInNodes(rebuilt, seg, s.idealSpaceLengthPx, s.spaceLengthMinRatio, s.spaceLengthMaxRatio);
+        }
+      }
+      set({ nodes: rebuilt });
+    },
+
+    setIdealSpaceLength(px) {
+      const s = get();
+      get().snapshot();
+      const idealSpaceLengthPx = Math.max(50, px);
+      let nodes = s.nodes;
+      const closingId = get().getClosingSegmentId();
+      for (const seg of s.designerSegments) {
+        if (closingId && seg.id === closingId) {
+          nodes = rebuildClosingSegmentInNodes(nodes, seg, idealSpaceLengthPx, s.spaceLengthMinRatio, s.spaceLengthMaxRatio);
+        } else {
+          nodes = rebuildOpenSegmentInNodes(nodes, seg, idealSpaceLengthPx, s.spaceLengthMinRatio, s.spaceLengthMaxRatio);
+        }
+      }
+      set({ idealSpaceLengthPx, nodes });
+    },
+
+    lockBackbone() {
+      const s = get();
+      if (s.backbonePhase !== 'design' || !s.loopClosed || s.nodes.length < 4) return;
+      get().snapshot();
+      set({
+        backbonePhase: 'locked',
+        tool: 'edit',
+        layoutActiveAnchorId: null,
+        layoutPreviewBend: 0,
+        selectedDesignerSegmentId: null,
+      });
+    },
+
+    unlockBackbone() {
+      const s = get();
+      if (s.backbonePhase !== 'locked' || s.designerSegments.length === 0) return;
+      get().snapshot();
+      set({
+        backbonePhase: 'design',
+        tool: 'layout',
+        segmentData: [],
+        conditionMarkers: [],
+        weatherToken: null,
+        nodes: stripNodeGameData(s.nodes),
+        selectedNodeIds: [],
+        selectedSegmentId: null,
+        selectedDesignerSegmentId: null,
+        layoutActiveAnchorId: null,
+        layoutPreviewBend: 0,
+      });
     },
   }))
 );

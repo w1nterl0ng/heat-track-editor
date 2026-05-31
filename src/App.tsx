@@ -37,6 +37,10 @@ export const App: React.FC = () => {
     activeSurfaceSide,
     setActiveSurface,
     checklistOpen,
+    backbonePhase,
+    layoutResetBend,
+    selectedDesignerSegmentId,
+    layoutActiveAnchorId,
   } = useEditorStore();
 
   // Resize canvas to always fill the available workspace
@@ -104,7 +108,7 @@ export const App: React.FC = () => {
       if (selectedNodeIds.length >= 1) {
         // C — toggle corner on all selected nodes
         if (e.key === 'c' || e.key === 'C') {
-          if (!loopClosed) return; // corners only make sense on closed loop
+          if (!loopClosed || backbonePhase !== 'locked') return;
           e.preventDefault();
           selectedNodeIds.forEach(id => toggleNodeCorner(id));
           clearSelection();
@@ -156,7 +160,7 @@ export const App: React.FC = () => {
       }
 
       // Surface mode shortcuts — set the active brush type/side
-      if (tool === 'surface') {
+      if (tool === 'surface' && backbonePhase === 'locked') {
         switch (e.key) {
           case 'p': case 'P': e.preventDefault(); setActiveSurface('plain');   return;
           case 'g': case 'G': e.preventDefault(); setActiveSurface('gravel');  return;
@@ -168,8 +172,18 @@ export const App: React.FC = () => {
         }
       }
 
+      // Layout: reset curve to straight
+      if (tool === 'layout' && backbonePhase === 'design' && (e.key === '0' || e.key === 'Home')) {
+        if (selectedDesignerSegmentId || layoutActiveAnchorId) {
+          e.preventDefault();
+          layoutResetBend();
+          return;
+        }
+      }
+
       // Tool / view shortcuts (no node required)
       switch (e.key) {
+        case 'p': case 'P': setTool('layout'); break;
         case 'v': case 'V': setTool('edit'); break;
         case 's': case 'S': setTool('surface'); break;
         case 'd': case 'D': setTool('condition'); break;
@@ -182,7 +196,8 @@ export const App: React.FC = () => {
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, [
-    tool, zoom, selectedNodeIds, spaceInput, loopClosed,
+    tool, zoom, selectedNodeIds, spaceInput, loopClosed, backbonePhase,
+    layoutResetBend, selectedDesignerSegmentId, layoutActiveAnchorId,
     activeSurfaceType, activeSurfaceSide,
     setTool, undo, redo, setZoom, setPan,
     setSpaceInput, setSpacesBetween, clearSelection,

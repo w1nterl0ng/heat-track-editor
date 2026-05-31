@@ -3,6 +3,8 @@ import { Stage, Layer, Image as KonvaImage, Line, Circle, Rect, Text, Group } fr
 import Konva from 'konva';
 import { useEditorStore, computeSegments } from '../store/editorStore';
 import { sampleSpline, nearestSampleIndex } from '../lib/spline';
+import { buildSegmentPreview, quadraticControl } from '../lib/designerCurve';
+import { getAnchorNodeIds, bendOffsetFromControlDrag } from '../lib/designerLayout';
 import {
   buildTrackLines,
   buildCornerLines,
@@ -63,7 +65,6 @@ export const TrackCanvas: React.FC<Props> = ({ stageRef }) => {
     selectedSegmentId,
     spaceInput,
     appendNode,
-    closeLoop,
     updateNodePosition,
     insertNodeOnEdge,
     selectNode,
@@ -82,6 +83,22 @@ export const TrackCanvas: React.FC<Props> = ({ stageRef }) => {
     commitWeatherTokenDrag,
     setBackgroundTransform,
     activeSurfaceSide,
+    backbonePhase,
+    designerSegments,
+    idealSpaceLengthPx,
+    spaceLengthMinRatio,
+    spaceLengthMaxRatio,
+    layoutActiveAnchorId,
+    layoutPreviewBend,
+    layoutClick,
+    layoutCloseLoop,
+    layoutSetPreviewBend,
+    layoutUpdateSegmentBend,
+    layoutUpdateAnchorPosition,
+    layoutResetBend,
+    layoutSplitSegment,
+    selectedDesignerSegmentId,
+    layoutSelectSegment,
   } = useEditorStore();
 
   // Width in world pixels. Reference is one tile (2048 px = 28.5 cm) so the
@@ -110,6 +127,33 @@ export const TrackCanvas: React.FC<Props> = ({ stageRef }) => {
     img.src = backgroundImage;
     img.onload = () => setBgImage(img);
   }, [backgroundImage]);
+
+  const anchorIds = useMemo(
+    () => getAnchorNodeIds(designerSegments, nodes, layoutActiveAnchorId),
+    [designerSegments, nodes, layoutActiveAnchorId],
+  );
+
+  const layoutPreview = useMemo(() => {
+    if (tool !== 'layout' || backbonePhase !== 'design' || !layoutActiveAnchorId || !cursorWorld) return null;
+    const start = nodes.find(n => n.id === layoutActiveAnchorId);
+    if (!start) return null;
+    return buildSegmentPreview(
+      start,
+      cursorWorld,
+      layoutPreviewBend,
+      idealSpaceLengthPx,
+      spaceLengthMinRatio,
+      spaceLengthMaxRatio,
+    );
+  }, [
+    tool, backbonePhase, layoutActiveAnchorId, cursorWorld, nodes,
+    layoutPreviewBend, idealSpaceLengthPx, spaceLengthMinRatio, spaceLengthMaxRatio,
+  ]);
+
+  const selectedLayoutSegment = useMemo(
+    () => designerSegments.find(s => s.id === selectedDesignerSegmentId) ?? null,
+    [designerSegments, selectedDesignerSegmentId],
+  );
 
   const nodePoints = useMemo(() => nodes.map(nd => ({ x: nd.x, y: nd.y })), [nodes]);
 
@@ -315,6 +359,24 @@ export const TrackCanvas: React.FC<Props> = ({ stageRef }) => {
     [panX, panY]
   );
 
+  const canCloseLoop = backbonePhase === 'design'
+    && !loopClosed
+    && !!layoutActiveAnchorId
+    && designerSegments.length >= 2
+    && layoutActiveAnchorId !== nodes[0]?.id;
+
+  const handleNodeClick = useCallback(
+    (e: Konva.KonvaEventObject<MouseEvent>, _nodeId: string, isFirst: boolean) => {
+      if (tool !== 'layout' || backbonePhase !== 'design') return;
+      if (dragHasMoved.current) return;
+      e.cancelBubble = true;
+      if (isFirst && canCloseLoop) {
+        layoutCloseLoop();
+      }
+    },
+    [tool, backbonePhase, canCloseLoop, layoutCloseLoop],
+  );
+
   const handleStageClick = useCallback(
     (e: Konva.KonvaEventObject<MouseEvent>) => {
       if (didPan.current) { didPan.current = false; return; }
@@ -327,7 +389,13 @@ export const TrackCanvas: React.FC<Props> = ({ stageRef }) => {
 
       if (tool === 'background') return;
 
+      if (tool === 'layout' && backbonePhase === 'design') {
+        layoutClick(pos.x, pos.y);
+        return;
+      }
+
       if (!loopClosed) {
+        if (backbonePhase === 'design') return;
         appendNode(pos.x, pos.y);
         return;
       }
@@ -348,7 +416,7 @@ export const TrackCanvas: React.FC<Props> = ({ stageRef }) => {
         clearSelection();
       }
     },
-    [loopClosed, appendNode, tool, ghostPos, insertNodeOnEdge, screenToWorld, clearSelection]
+    [loopClosed, appendNode, tool, ghostPos, insertNodeOnEdge, screenToWorld, clearSelection, backbonePhase, layoutClick]
   );
 
   const handleWheel = useCallback(
@@ -356,6 +424,22 @@ export const TrackCanvas: React.FC<Props> = ({ stageRef }) => {
       e.evt.preventDefault();
       const stage = e.target.getStage()!;
       const pointer = stage.getPointerPosition()!;
+
+      // Layout mode: scroll zooms; Ctrl+scroll bends segment
+      if (tool === 'layout' && backbonePhase === 'design' && (e.evt.ctrlKey || e.evt.metaKey)) {
+        const scrollValue = e.evt.deltaY !== 0 ? e.evt.deltaY : e.evt.deltaX;
+        const delta = scrollValue > 0 ? -12 : 12;
+        if (selectedDesignerSegmentId) {
+          const seg = designerSegments.find(s => s.id === selectedDesignerSegmentId);
+          if (seg) {
+            layoutUpdateSegmentBend(seg.id, seg.bendOffset + delta, false);
+          }
+        } else if (layoutActiveAnchorId) {
+          layoutSetPreviewBend(layoutPreviewBend + delta);
+        }
+        return;
+      }
+
       const factor = e.evt.deltaY < 0 ? 1.1 : 0.9;
       const newZoom = Math.max(0.1, Math.min(5, zoom * factor));
       const worldX = (pointer.x - panX) / zoom;
@@ -363,13 +447,29 @@ export const TrackCanvas: React.FC<Props> = ({ stageRef }) => {
       setZoom(newZoom);
       setPan(pointer.x - worldX * newZoom, pointer.y - worldY * newZoom);
     },
-    [zoom, panX, panY, setZoom, setPan]
+    [
+      zoom, panX, panY, setZoom, setPan, tool, backbonePhase,
+      selectedDesignerSegmentId, designerSegments, layoutUpdateSegmentBend,
+      layoutActiveAnchorId, layoutPreviewBend, layoutSetPreviewBend,
+    ]
   );
 
   const handleNodeMouseDown = useCallback(
     (e: Konva.KonvaEventObject<MouseEvent>, nodeId: string) => {
       e.cancelBubble = true;
       if (e.evt.button !== 0) return;
+
+      if (tool === 'layout' && backbonePhase === 'design') {
+        if (!anchorIds.has(nodeId)) return;
+        if (e.evt.shiftKey) {
+          layoutSelectSegment(null);
+          return;
+        }
+        draggingNodeId.current = nodeId;
+        dragHasMoved.current = false;
+        snapshot();
+        return;
+      }
 
       if (e.evt.shiftKey) {
         selectNode(nodeId);
@@ -379,15 +479,19 @@ export const TrackCanvas: React.FC<Props> = ({ stageRef }) => {
       draggingNodeId.current = nodeId;
       dragHasMoved.current = false;
     },
-    [selectNode]
+    [selectNode, tool, backbonePhase, anchorIds, layoutSelectSegment, snapshot]
   );
 
   const handleNodeDragMove = useCallback(
     (e: Konva.KonvaEventObject<DragEvent>, nodeId: string) => {
       dragHasMoved.current = true;
+      if (tool === 'layout' && backbonePhase === 'design') {
+        layoutUpdateAnchorPosition(nodeId, e.target.x(), e.target.y());
+        return;
+      }
       updateNodePosition(nodeId, e.target.x(), e.target.y());
     },
-    [updateNodePosition]
+    [updateNodePosition, tool, backbonePhase, layoutUpdateAnchorPosition]
   );
 
   const handleNodeDragEnd = useCallback(
@@ -399,14 +503,6 @@ export const TrackCanvas: React.FC<Props> = ({ stageRef }) => {
     [snapshot]
   );
 
-  const handleFirstNodeClick = useCallback(
-    (e: Konva.KonvaEventObject<MouseEvent>) => {
-      e.cancelBubble = true;
-      if (!loopClosed && nodes.length >= 3) closeLoop();
-    },
-    [loopClosed, nodes.length, closeLoop]
-  );
-
   const spaceInputScreenPos = useMemo(() => {
     if (selectedNodeIds.length !== 2) return null;
     const a = nodes.find(n => n.id === selectedNodeIds[0]);
@@ -416,6 +512,7 @@ export const TrackCanvas: React.FC<Props> = ({ stageRef }) => {
   }, [selectedNodeIds, nodes, worldToScreen]);
 
   const cursorStyle = isPanning.current ? 'grabbing'
+    : tool === 'layout' ? 'crosshair'
     : tool === 'surface' ? (hoveredSpaceNodeId ? 'pointer' : 'default')
     : tool === 'background' ? 'default'
     : 'crosshair';
@@ -549,15 +646,183 @@ export const TrackCanvas: React.FC<Props> = ({ stageRef }) => {
         <Layer>
           <Group x={panX} y={panY} scaleX={zoom} scaleY={zoom}>
 
-            {/* Build-mode chain */}
-            {!loopClosed && nodes.length >= 2 && (
+            {/* Layout designer — committed segments + live preview */}
+            {backbonePhase === 'design' && designerSegments.map(seg => {
+              const a = nodes.find(n => n.id === seg.startNodeId);
+              const b = nodes.find(n => n.id === seg.endNodeId);
+              if (!a || !b) return null;
+              const prev = buildSegmentPreview(
+                a, b, seg.bendOffset,
+                idealSpaceLengthPx, spaceLengthMinRatio, spaceLengthMaxRatio,
+              );
+              const isSel = seg.id === selectedDesignerSegmentId;
+              return (
+                <Group key={seg.id}>
+                  <Line
+                    points={prev.polyline}
+                    stroke="#22d3ee"
+                    strokeWidth={trackWidthPx}
+                    lineCap="round"
+                    lineJoin="round"
+                    opacity={0.2}
+                    listening={false}
+                  />
+                  {/* Wide hit target for select / split */}
+                  <Line
+                    points={prev.polyline}
+                    stroke="transparent"
+                    strokeWidth={Math.max(trackWidthPx * 1.5, 24 / zoom)}
+                    lineCap="round"
+                    lineJoin="round"
+                    hitStrokeWidth={Math.max(trackWidthPx * 2, 28 / zoom)}
+                    onClick={e => {
+                      e.cancelBubble = true;
+                      layoutSelectSegment(seg.id);
+                    }}
+                    onDblClick={e => {
+                      e.cancelBubble = true;
+                      const stage = e.target.getStage()!;
+                      const sp = stage.getPointerPosition();
+                      if (!sp) return;
+                      const world = screenToWorld(sp.x, sp.y);
+                      layoutSplitSegment(seg.id, world.x, world.y);
+                    }}
+                  />
+                  <Line
+                    points={prev.polyline}
+                    stroke={isSel ? '#fbbf24' : '#22d3ee'}
+                    strokeWidth={isSel ? 3 / zoom : 2 / zoom}
+                    lineCap="round"
+                    opacity={isSel ? 1 : 0.7}
+                    listening={false}
+                  />
+                  {showGrid && prev.points.slice(0, -1).map((pt, i) => {
+                    const next = prev.points[i + 1];
+                    const mx = (pt.x + next.x) / 2;
+                    const my = (pt.y + next.y) / 2;
+                    const dx = next.x - pt.x;
+                    const dy = next.y - pt.y;
+                    const len = Math.sqrt(dx * dx + dy * dy) || 1;
+                    const nx = -dy / len;
+                    const ny = dx / len;
+                    return (
+                      <Line
+                        key={`tick-${i}`}
+                        points={[
+                          mx - nx * halfWidth, my - ny * halfWidth,
+                          mx + nx * halfWidth, my + ny * halfWidth,
+                        ]}
+                        stroke="#64748b"
+                        strokeWidth={1 / zoom}
+                        opacity={0.55}
+                        listening={false}
+                      />
+                    );
+                  })}
+                </Group>
+              );
+            })}
+
+            {backbonePhase === 'design' && layoutPreview && layoutActiveAnchorId && (
+              <Group listening={false}>
+                <Line
+                  points={layoutPreview.polyline}
+                  stroke="#22d3ee"
+                  strokeWidth={trackWidthPx}
+                  lineCap="round"
+                  opacity={0.15}
+                />
+                <Line
+                  points={layoutPreview.polyline}
+                  stroke="#39ff14"
+                  strokeWidth={2 / zoom}
+                  lineCap="round"
+                  dash={[8 / zoom, 4 / zoom]}
+                  opacity={0.85}
+                />
+                {showGrid && layoutPreview.points.slice(0, -1).map((pt, i) => {
+                  const next = layoutPreview.points[i + 1];
+                  const mx = (pt.x + next.x) / 2;
+                  const my = (pt.y + next.y) / 2;
+                  const dx = next.x - pt.x;
+                  const dy = next.y - pt.y;
+                  const len = Math.sqrt(dx * dx + dy * dy) || 1;
+                  const nx = -dy / len;
+                  const ny = dx / len;
+                  return (
+                    <Line
+                      key={`pv-${i}`}
+                      points={[
+                        mx - nx * halfWidth, my - ny * halfWidth,
+                        mx + nx * halfWidth, my + ny * halfWidth,
+                      ]}
+                      stroke="#39ff14"
+                      strokeWidth={1.5 / zoom}
+                      opacity={0.7}
+                      listening={false}
+                    />
+                  );
+                })}
+                <Text
+                  x={layoutPreview.controlPoint.x + 8 / zoom}
+                  y={layoutPreview.controlPoint.y - 16 / zoom}
+                  text={`${layoutPreview.spaceCount} spaces`}
+                  fill="#39ff14"
+                  fontSize={12 / zoom}
+                  listening={false}
+                />
+              </Group>
+            )}
+
+            {/* Bend handle for selected layout segment */}
+            {backbonePhase === 'design' && selectedLayoutSegment && (() => {
+              const a = nodes.find(n => n.id === selectedLayoutSegment.startNodeId);
+              const b = nodes.find(n => n.id === selectedLayoutSegment.endNodeId);
+              if (!a || !b) return null;
+              const cp = quadraticControl(a, b, selectedLayoutSegment.bendOffset);
+              return (
+                <Group key="bend-handle">
+                  <Line
+                    points={[
+                      (a.x + b.x) / 2, (a.y + b.y) / 2,
+                      cp.x, cp.y,
+                    ]}
+                    stroke="#fbbf24"
+                    strokeWidth={1 / zoom}
+                    dash={[4 / zoom, 3 / zoom]}
+                    listening={false}
+                  />
+                  <Circle
+                    x={cp.x}
+                    y={cp.y}
+                    radius={8 / zoom}
+                    fill="#fbbf24"
+                    stroke="#fff"
+                    strokeWidth={2 / zoom}
+                    draggable
+                    onDragMove={e => {
+                      const bend = bendOffsetFromControlDrag(a, b, e.target.x(), e.target.y());
+                      layoutUpdateSegmentBend(selectedLayoutSegment.id, bend, false);
+                    }}
+                    onDragEnd={() => snapshot()}
+                    onDblClick={e => {
+                      e.cancelBubble = true;
+                      layoutResetBend();
+                    }}
+                  />
+                </Group>
+              );
+            })()}
+
+            {/* Legacy build-mode chain (locked / old workflow) */}
+            {backbonePhase !== 'design' && !loopClosed && nodes.length >= 2 && (
               <Line
                 points={nodes.flatMap(nd => [nd.x, nd.y])}
                 stroke="#39ff14" strokeWidth={2 / zoom}
                 lineJoin="round" lineCap="round" opacity={0.5} listening={false}
               />
             )}
-            {!loopClosed && nodes.length >= 1 && cursorWorld && (
+            {backbonePhase !== 'design' && !loopClosed && nodes.length >= 1 && cursorWorld && (
               <Line
                 points={[nodes[nodes.length - 1].x, nodes[nodes.length - 1].y, cursorWorld.x, cursorWorld.y]}
                 stroke="#39ff14" strokeWidth={1 / zoom}
@@ -565,8 +830,8 @@ export const TrackCanvas: React.FC<Props> = ({ stageRef }) => {
               />
             )}
 
-            {/* Track fill + edges */}
-            {trackLines && showSpline && (
+            {/* Close-loop hint ring — rendered in handles layer for hit target */}
+            {trackLines && showSpline && (backbonePhase === 'locked' || (backbonePhase === 'design' && loopClosed)) && (
               <>
                 <Line points={trackLines.centerPoints} stroke="#39ff14"
                   strokeWidth={trackWidthPx} lineJoin="round" lineCap="round"
@@ -583,8 +848,8 @@ export const TrackCanvas: React.FC<Props> = ({ stageRef }) => {
               </>
             )}
 
-            {/* Surface overlays — toggled with track */}
-            {showSpline && surfaceOverlays.map(ov => {
+            {/* Surface overlays — toggled with track (locked only) */}
+            {backbonePhase === 'locked' && showSpline && surfaceOverlays.map(ov => {
               const cfg = SURFACE_COLORS[ov.surfaceType];
               return (
                 <Line
@@ -599,7 +864,7 @@ export const TrackCanvas: React.FC<Props> = ({ stageRef }) => {
             })}
 
             {/* Phantom space overlays — dark hatched fill + dashed border */}
-            {phantomOverlays.map(ov => (
+            {backbonePhase === 'locked' && phantomOverlays.map(ov => (
               <React.Fragment key={`ph-${ov.nodeId}`}>
                 <Line
                   points={ov.points}
@@ -635,7 +900,7 @@ export const TrackCanvas: React.FC<Props> = ({ stageRef }) => {
             )}
 
             {/* Race lines — world-space width, scales with zoom */}
-            {showSpline && raceLineArcs.map((arc, i) => (
+            {backbonePhase === 'locked' && showSpline && raceLineArcs.map((arc, i) => (
               <Line
                 key={`rl-${i}`}
                 points={arc.points}
@@ -648,7 +913,7 @@ export const TrackCanvas: React.FC<Props> = ({ stageRef }) => {
             ))}
 
             {/* Corner stripes */}
-            {cornerStripes.map((cs, i) => (
+            {backbonePhase === 'locked' && cornerStripes.map((cs, i) => (
               <Line
                 key={`cstr-${i}`}
                 points={cs.points}
@@ -662,7 +927,7 @@ export const TrackCanvas: React.FC<Props> = ({ stageRef }) => {
             ))}
 
             {/* Chicane stripes */}
-            {chicaneStripes.map((cs, i) => (
+            {backbonePhase === 'locked' && chicaneStripes.map((cs, i) => (
               <Group key={`chic-${i}`} listening={false}>
                 <Line
                   points={cs.innerPoints}
@@ -684,7 +949,7 @@ export const TrackCanvas: React.FC<Props> = ({ stageRef }) => {
             ))}
 
             {/* Speed markers — sizes in world space */}
-            {showLollipops && speedMarkers.map((m, i) => (
+            {backbonePhase === 'locked' && showLollipops && speedMarkers.map((m, i) => (
               <Group key={`spd-${i}`} listening={false}>
                 <Line
                   points={[m.stickStart.x, m.stickStart.y, m.circleCenter.x, m.circleCenter.y]}
@@ -724,7 +989,7 @@ export const TrackCanvas: React.FC<Props> = ({ stageRef }) => {
             )}
 
             {/* Space ticks */}
-            {showGrid && spaceTicks.map((segTicks, si) =>
+            {backbonePhase === 'locked' && showGrid && spaceTicks.map((segTicks, si) =>
               segTicks.map((tick, ti) => (
                 <Line
                   key={`t-${si}-${ti}`}
@@ -737,7 +1002,7 @@ export const TrackCanvas: React.FC<Props> = ({ stageRef }) => {
             )}
 
             {/* Corner lines */}
-            {cornerLines.map((cl, idx) => (
+            {backbonePhase === 'locked' && cornerLines.map((cl, idx) => (
               <Group key={cl.id}>
                 <Line
                   points={[cl.inner.x, cl.inner.y, cl.outer.x, cl.outer.y]}
@@ -752,7 +1017,7 @@ export const TrackCanvas: React.FC<Props> = ({ stageRef }) => {
             ))}
 
             {/* Finish line */}
-            {finishLine && (
+            {backbonePhase === 'locked' && finishLine && (
               <Group>
                 <Line
                   points={[finishLine.inner.x, finishLine.inner.y, finishLine.outer.x, finishLine.outer.y]}
@@ -765,7 +1030,7 @@ export const TrackCanvas: React.FC<Props> = ({ stageRef }) => {
             )}
 
             {/* Legends lines */}
-            {legendsLines.map((ll, i) => (
+            {backbonePhase === 'locked' && legendsLines.map((ll, i) => (
               <Line key={`ll-${i}`}
                 points={[ll.inner.x, ll.inner.y, ll.outer.x, ll.outer.y]}
                 stroke="#c084fc" strokeWidth={halfWidth * 0.06}
@@ -774,7 +1039,7 @@ export const TrackCanvas: React.FC<Props> = ({ stageRef }) => {
             ))}
 
             {/* Legends lollipop markers */}
-            {showLollipops && legendsMarkers.map((m, i) => (
+            {backbonePhase === 'locked' && showLollipops && legendsMarkers.map((m, i) => (
               <Group key={`lm-${i}`} listening={false}>
                 <Line
                   points={[m.stickStart.x, m.stickStart.y, m.circleCenter.x, m.circleCenter.y]}
@@ -801,7 +1066,7 @@ export const TrackCanvas: React.FC<Props> = ({ stageRef }) => {
             ))}
 
             {/* Condition markers — world-space sizes */}
-            {showConditionMarkers && conditionMarkers.map(m => {
+            {backbonePhase === 'locked' && showConditionMarkers && conditionMarkers.map(m => {
               const size   = halfWidth * 1.0;
               const half   = size / 2;
               const armLen = halfWidth * 1.3;
@@ -876,7 +1141,7 @@ export const TrackCanvas: React.FC<Props> = ({ stageRef }) => {
             })}
 
             {/* Plain sector countdown numbers (4 … sector_length) */}
-            {sectorCountdownNumbers.map((m, i) => {
+            {backbonePhase === 'locked' && sectorCountdownNumbers.map((m, i) => {
               const S = halfWidth * 0.28;
               return (
                 <Group key={`sn-${i}`} x={m.point.x} y={m.point.y} listening={false}>
@@ -902,7 +1167,7 @@ export const TrackCanvas: React.FC<Props> = ({ stageRef }) => {
             })}
 
             {/* Legends countdown markers — world-space sizes */}
-            {countdownMarkerVisuals.map((m, i) => {
+            {backbonePhase === 'locked' && countdownMarkerVisuals.map((m, i) => {
               const S      = halfWidth * 0.35;
               const brownW = S * 0.1;
               const gap    = S * 0.075;
@@ -960,7 +1225,7 @@ export const TrackCanvas: React.FC<Props> = ({ stageRef }) => {
             )}
 
             {/* Weather token — fixed 525:429 aspect ratio, scroll to scale */}
-            {showConditionMarkers && weatherToken && (() => {
+            {backbonePhase === 'locked' && showConditionMarkers && weatherToken && (() => {
               const W = weatherToken.width;
               const H = W * (429 / 525);
               const strokeW = Math.max(1 / zoom, W * 0.012);
@@ -1026,22 +1291,54 @@ export const TrackCanvas: React.FC<Props> = ({ stageRef }) => {
         {/* ── Node handles ─────────────────────────────── */}
         <Layer name="handles">
           <Group x={panX} y={panY} scaleX={zoom} scaleY={zoom}>
+            {/* Clickable close-loop target around first anchor */}
+            {canCloseLoop && nodes.length > 0 && (
+              <>
+                <Circle
+                  x={nodes[0].x}
+                  y={nodes[0].y}
+                  radius={(FIRST_NODE_RADIUS + 28) / zoom}
+                  fill="rgba(245, 158, 11, 0.08)"
+                  stroke="#f59e0b"
+                  strokeWidth={2 / zoom}
+                  dash={[6 / zoom, 4 / zoom]}
+                  onClick={e => {
+                    e.cancelBubble = true;
+                    layoutCloseLoop();
+                  }}
+                  onTap={e => {
+                    e.cancelBubble = true;
+                    layoutCloseLoop();
+                  }}
+                />
+              </>
+            )}
             {nodes.map((nd, idx) => {
               const isFirst = idx === 0;
               const isCorner = nd.isCorner;
               const isPhantom = nd.isPhantom;
               const isSelected = selectedNodeIds.includes(nd.id);
+              const isAnchor = anchorIds.has(nd.id);
+              const isLayoutMode = tool === 'layout' && backbonePhase === 'design';
 
               const radius = isCorner ? CORNER_RADIUS
+                : isAnchor && isLayoutMode ? FIRST_NODE_RADIUS
                 : isFirst && !loopClosed ? FIRST_NODE_RADIUS
                 : NODE_RADIUS;
               const fillColor = isPhantom ? '#1e293b'
                 : isCorner ? '#ef4444'
+                : isAnchor && isLayoutMode ? '#f59e0b'
+                : isLayoutMode ? '#164e63'
                 : isFirst && !loopClosed ? '#f59e0b'
                 : '#39ff14';
               const strokeColor = isPhantom ? '#94a3b8'
                 : isSelected ? '#60a5fa'
+                : isAnchor && isLayoutMode ? '#fcd34d'
                 : '#fff';
+
+              const canDrag = isLayoutMode
+                ? isAnchor
+                : tool !== 'surface' && tool !== 'background' && tool !== 'condition' && (loopClosed || !isFirst);
 
               return (
                 <Group key={nd.id}>
@@ -1052,7 +1349,7 @@ export const TrackCanvas: React.FC<Props> = ({ stageRef }) => {
                       fill="transparent" listening={false}
                     />
                   )}
-                  {(nd.isFinishLine || nd.isLegendsLine) && (
+                  {(nd.isFinishLine || nd.isLegendsLine) && backbonePhase === 'locked' && (
                     <Circle x={nd.x} y={nd.y}
                       radius={(radius + 3) / zoom}
                       stroke={nd.isFinishLine ? '#facc15' : '#c084fc'}
@@ -1074,8 +1371,8 @@ export const TrackCanvas: React.FC<Props> = ({ stageRef }) => {
                     fill={fillColor}
                     stroke={strokeColor}
                     strokeWidth={(isSelected ? 3 : isPhantom ? 1 : 2) / zoom}
-                    opacity={isPhantom ? 0.5 : 1}
-                    draggable={tool !== 'surface' && tool !== 'background' && tool !== 'condition' && (loopClosed || !isFirst)}
+                    opacity={isPhantom ? 0.5 : isLayoutMode && !isAnchor ? 0.35 : 1}
+                    draggable={canDrag}
                     hitFunc={(ctx, shape) => {
                       const r = Math.max(radius, 14) / zoom;
                       ctx.beginPath();
@@ -1086,9 +1383,9 @@ export const TrackCanvas: React.FC<Props> = ({ stageRef }) => {
                     onMouseDown={e => handleNodeMouseDown(e, nd.id)}
                     onDragMove={e => handleNodeDragMove(e, nd.id)}
                     onDragEnd={e => handleNodeDragEnd(e, nd.id)}
-                    onClick={isFirst && !loopClosed ? handleFirstNodeClick : undefined}
+                    onClick={e => handleNodeClick(e, nd.id, isFirst)}
                   />
-                  {isFirst && !loopClosed && nodes.length >= 3 && (
+                  {isFirst && !loopClosed && nodes.length >= 3 && backbonePhase !== 'design' && (
                     <Circle x={nd.x} y={nd.y}
                       radius={(FIRST_NODE_RADIUS + 6) / zoom}
                       stroke="#f59e0b" strokeWidth={1.5 / zoom}

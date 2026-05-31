@@ -4,10 +4,11 @@ import { useEditorStore } from '../store/editorStore';
 const CHECKLIST_TOTAL = 21; // keep in sync with ChecklistPanel TOTAL
 
 const TOOLS = [
-  { mode: 'edit' as const,       label: 'Edit',      icon: '↖', title: 'Edit track nodes (V)',        shortcut: 'V' },
-  { mode: 'surface' as const,    label: 'Surface',   icon: '⬛', title: 'Paint space surfaces (S)',    shortcut: 'S' },
-  { mode: 'condition' as const,  label: 'Condition', icon: '◼', title: 'Place condition markers (D)',  shortcut: 'D' },
-  { mode: 'background' as const, label: 'BG Layer',  icon: '▣', title: 'Edit background image (B)',   shortcut: 'B' },
+  { mode: 'layout' as const,     label: 'Layout',    icon: '⌖', title: 'Draw track layout (P)',         shortcut: 'P', designOnly: true },
+  { mode: 'edit' as const,       label: 'Edit',      icon: '↖', title: 'Edit track nodes (V)',        shortcut: 'V', designOnly: false },
+  { mode: 'surface' as const,    label: 'Surface',   icon: '⬛', title: 'Paint space surfaces (S)',    shortcut: 'S', designOnly: false },
+  { mode: 'condition' as const,  label: 'Condition', icon: '◼', title: 'Place condition markers (D)',  shortcut: 'D', designOnly: false },
+  { mode: 'background' as const, label: 'BG Layer',  icon: '▣', title: 'Edit background image (B)',   shortcut: 'B', designOnly: false },
 ];
 
 export const Toolbar: React.FC = () => {
@@ -35,6 +36,7 @@ export const Toolbar: React.FC = () => {
     checklistOpen,
     toggleChecklist,
     checklistItems,
+    backbonePhase,
   } = useEditorStore();
 
   const checklistDone = Object.values(checklistItems).filter(Boolean).length;
@@ -98,7 +100,10 @@ export const Toolbar: React.FC = () => {
 
       <div style={styles.divider} />
 
-      {TOOLS.map(t => (
+      {TOOLS.filter(t => {
+        if (backbonePhase === 'design') return t.mode === 'layout' || t.mode === 'background';
+        return t.mode !== 'layout';
+      }).map(t => (
         <button
           key={t.mode}
           onClick={() => setTool(t.mode)}
@@ -117,10 +122,19 @@ export const Toolbar: React.FC = () => {
       <div style={styles.divider} />
 
       <div style={styles.hintGroup}>
-        <span style={styles.hint}>Shift+click node → select</span>
-        <span style={styles.hint}>C → corner · F → finish · L → legends · H → phantom · I → flip lollipop</span>
-        <span style={styles.hint}>Del → delete · 2 selected → type spaces</span>
-        <span style={styles.hint}>D → condition markers</span>
+        {backbonePhase === 'design' ? (
+          <>
+            <span style={styles.hint}>Click to place anchors · dbl-click segment to split · scroll zoom</span>
+            <span style={styles.hint}>Ctrl+scroll bend · 0 straight · click amber ring to close</span>
+          </>
+        ) : (
+          <>
+            <span style={styles.hint}>Shift+click node → select</span>
+            <span style={styles.hint}>C → corner · F → finish · L → legends · H → phantom · I → flip lollipop</span>
+            <span style={styles.hint}>Del → delete · 2 selected → type spaces</span>
+            <span style={styles.hint}>D → condition markers</span>
+          </>
+        )}
       </div>
 
       <div style={styles.divider} />

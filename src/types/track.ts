@@ -3,7 +3,22 @@ export interface Point {
   y: number;
 }
 
-export type ToolMode = 'edit' | 'surface' | 'condition' | 'background';
+export type ToolMode = 'layout' | 'edit' | 'surface' | 'condition' | 'background';
+
+/** Whether the spline backbone is still editable in layout mode or locked for game authoring. */
+export type BackbonePhase = 'design' | 'locked';
+
+/**
+ * One quadratic Bézier span between two anchor nodes, authored in layout mode.
+ * Intermediate space nodes are derived from bendOffset + ideal space length.
+ */
+export interface DesignerSegment {
+  id: string;
+  startNodeId: string;
+  endNodeId: string;
+  /** Signed perpendicular offset (world px) for the Bézier control point. */
+  bendOffset: number;
+}
 
 export type ConditionMarkerType = 'sector' | 'corner' | 'chicane';
 
@@ -180,4 +195,16 @@ export interface EditorState {
    * Persisted in .hte but excluded from all game export formats.
    */
   checklistItems: Record<string, boolean>;
+
+  /** Layout designer: backbone editing vs locked for full editor. */
+  backbonePhase: BackbonePhase;
+  /** Quadratic segments between anchor nodes (layout mode). */
+  designerSegments: DesignerSegment[];
+  /** Target space length in world px for auto-spacing. */
+  idealSpaceLengthPx: number;
+  /** Allowed per-space length = ideal × ratio (min/max). */
+  spaceLengthMinRatio: number;
+  spaceLengthMaxRatio: number;
+  /** Selected layout segment for handle editing. */
+  selectedDesignerSegmentId: string | null;
 }

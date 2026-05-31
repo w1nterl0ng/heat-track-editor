@@ -6,6 +6,7 @@ import { SegmentList } from './SegmentList';
 import { SegmentProperties } from './SegmentProperties';
 import { SurfacePanel } from './SurfacePanel';
 import { ConditionPanel } from './ConditionPanel';
+import { LayoutPanel } from './LayoutPanel';
 import { BackgroundPanel } from './BackgroundPanel';
 import { exportYamlString, downloadFile } from '../lib/exportYaml';
 import { exportTrackLayoutJson } from '../lib/exportJson';
@@ -23,7 +24,7 @@ export const Sidebar: React.FC<Props> = ({ stageRef }) => {
   const [activeTab, setActiveTab] = useState<Tab>('track');
   const [bundleExporting, setBundleExporting] = useState(false);
   const store = useEditorStore();
-  const { meta, nodes, tool, backgroundImage, segmentData, conditionMarkers } = store;
+  const { meta, nodes, tool, backgroundImage, segmentData, conditionMarkers, backbonePhase, designerSegments } = store;
 
   const computed = computeSegments(nodes);
   const cornerCount = computed.length;
@@ -92,7 +93,12 @@ export const Sidebar: React.FC<Props> = ({ stageRef }) => {
   return (
     <div style={styles.sidebar}>
       {/* Surface / Condition / Background modes replace normal tab UI */}
-      {tool === 'surface' ? (
+      {tool === 'layout' ? (
+        <div style={styles.tabContent}>
+          <LayoutPanel />
+          <BackgroundPanel />
+        </div>
+      ) : tool === 'surface' ? (
         <div style={styles.tabContent}>
           <SurfacePanel />
         </div>
@@ -123,7 +129,10 @@ export const Sidebar: React.FC<Props> = ({ stageRef }) => {
 
         {/* ── TRACK TAB ────────────────────────────────────────── */}
         {activeTab === 'track' && (
-          <TrackProperties />
+          <>
+            {backbonePhase === 'locked' && designerSegments.length > 0 && <LayoutPanel />}
+            <TrackProperties />
+          </>
         )}
 
         {/* ── SEGMENTS TAB ─────────────────────────────────────── */}
