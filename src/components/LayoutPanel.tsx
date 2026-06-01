@@ -11,15 +11,27 @@ export const LayoutPanel: React.FC = () => {
     setIdealSpaceLength,
     lockBackbone,
     unlockBackbone,
+    clearBackbone,
     trackWidthPct,
   } = useEditorStore();
 
   const [confirmUnlock, setConfirmUnlock] = useState(false);
+  const [confirmClear, setConfirmClear] = useState(false);
 
   const mmPerPx = 28.5 / 2048;
   const idealMm = idealSpaceLengthPx * mmPerPx * 10;
   const canLock = backbonePhase === 'design' && loopClosed && nodes.length >= 4;
   const canUnlock = backbonePhase === 'locked' && designerSegments.length > 0;
+  const canClear = nodes.length > 0 || designerSegments.length > 0;
+
+  const handleClear = () => {
+    if (!confirmClear) {
+      setConfirmClear(true);
+      return;
+    }
+    clearBackbone();
+    setConfirmClear(false);
+  };
 
   const handleUnlock = () => {
     if (!confirmUnlock) {
@@ -67,11 +79,28 @@ export const LayoutPanel: React.FC = () => {
             />
           </div>
 
+          {canClear && (
+            <div style={{ marginTop: 8 }}>
+              <button
+                type="button"
+                onClick={handleClear}
+                style={confirmClear ? styles.btnDanger : styles.btnSecondary}
+              >
+                {confirmClear ? 'Confirm — clear backbone' : 'Clear backbone'}
+              </button>
+              {confirmClear && (
+                <p style={styles.warn}>
+                  Removes all anchors and segments so you can trace again. Background image, tile grid, and track settings are kept.
+                </p>
+              )}
+            </div>
+          )}
+
           <button
             onClick={lockBackbone}
             disabled={!canLock}
             title={canLock ? 'Lock backbone and continue to full editor' : 'Close the loop first'}
-            style={{ ...styles.btnPrimary, ...(!canLock ? styles.btnDisabled : {}) }}
+            style={{ ...styles.btnPrimary, ...(!canLock ? styles.btnDisabled : {}), marginTop: canClear ? 8 : 0 }}
           >
             Lock backbone →
           </button>

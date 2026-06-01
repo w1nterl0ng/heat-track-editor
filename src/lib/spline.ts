@@ -161,6 +161,67 @@ export function resampleByArcLength(
   return result;
 }
 
+/**
+ * Extract samples along the shorter arc from startIdx to endIdx on a closed sample ring.
+ * Arc lengths are recomputed starting at 0 at startIdx.
+ */
+export function extractShorterArc(
+  samples: SplineSample[],
+  startIdx: number,
+  endIdx: number,
+): SplineSample[] {
+  const n = samples.length;
+  if (n === 0) return [];
+
+  const cwSteps = (endIdx - startIdx + n) % n;
+  const ccwSteps = (startIdx - endIdx + n) % n;
+  const forward = cwSteps <= ccwSteps;
+  const steps = forward ? cwSteps : ccwSteps;
+
+  const arc: SplineSample[] = [];
+  let i = startIdx;
+  arc.push(samples[i]);
+  for (let s = 0; s < steps; s++) {
+    i = forward ? (i + 1) % n : (i - 1 + n) % n;
+    arc.push(samples[i]);
+  }
+
+  const result: SplineSample[] = [];
+  let cum = 0;
+  for (let j = 0; j < arc.length; j++) {
+    result.push({ ...arc[j], arcLength: cum });
+    if (j + 1 < arc.length) {
+      const a = arc[j].point;
+      const b = arc[j + 1].point;
+      cum += Math.hypot(b.x - a.x, b.y - a.y);
+    }
+  }
+  return result;
+}
+
+/** Point at a fractional arc length along an arc extracted via extractShorterArc. */
+export function pointAtArcFraction(arc: SplineSample[], fraction: number): Point {
+  if (arc.length === 0) return { x: 0, y: 0 };
+  if (fraction <= 0) return { ...arc[0].point };
+  const total = arc[arc.length - 1].arcLength;
+  if (total < 1e-6) return { ...arc[0].point };
+  const target = total * Math.min(1, fraction);
+
+  for (let i = 0; i < arc.length - 1; i++) {
+    const a = arc[i];
+    const b = arc[i + 1];
+    if (b.arcLength >= target - 1e-6) {
+      const segLen = b.arcLength - a.arcLength;
+      const t = segLen > 1e-6 ? (target - a.arcLength) / segLen : 0;
+      return {
+        x: a.point.x + (b.point.x - a.point.x) * t,
+        y: a.point.y + (b.point.y - a.point.y) * t,
+      };
+    }
+  }
+  return { ...arc[arc.length - 1].point };
+}
+
 function lerp(a: number, b: number, t: number): number {
   return a + (b - a) * t;
 }

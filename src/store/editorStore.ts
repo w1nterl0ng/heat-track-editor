@@ -13,7 +13,7 @@ import type {
   ConditionMarker,
   DesignerSegment,
 } from '../types/track';
-import { sampleSpline } from '../lib/spline';
+import { sampleSpline, extractShorterArc, pointAtArcFraction } from '../lib/spline';
 import {
   DEFAULT_IDEAL_SPACE_LENGTH_PX,
   DEFAULT_SPACE_LENGTH_MIN_RATIO,
@@ -119,6 +119,7 @@ function shortArcBetween(nodes: TrackNode[], idA: string, idB: string): number[]
 /**
  * Replace the shorter arc between idA and idB with (count - 1) evenly-spaced
  * new nodes, giving exactly `count` edges (spaces) between them.
+ * New nodes follow the existing spline curve (arc-length spacing), not a chord.
  */
 function applySetSpacesBetween(
   nodes: TrackNode[],
@@ -142,15 +143,13 @@ function applySetSpacesBetween(
     fromIdx = iB; toIdx = iA;
   }
 
-  const nodeFrom = nodes[fromIdx];
-  const nodeTo = nodes[toIdx];
+  const samplesPerEdge = 16;
+  const samples = sampleSpline(nodes.map(nd => ({ x: nd.x, y: nd.y })), samplesPerEdge);
+  const arc = extractShorterArc(samples, fromIdx * samplesPerEdge, toIdx * samplesPerEdge);
 
   const newNodes: TrackNode[] = Array.from({ length: count - 1 }, (_, k) => {
-    const frac = (k + 1) / count;
-    return makeNode(
-      nodeFrom.x + (nodeTo.x - nodeFrom.x) * frac,
-      nodeFrom.y + (nodeTo.y - nodeFrom.y) * frac,
-    );
+    const pt = pointAtArcFraction(arc, (k + 1) / count);
+    return makeNode(pt.x, pt.y);
   });
 
   if (fromIdx < toIdx) {
@@ -159,12 +158,12 @@ function applySetSpacesBetween(
       ...newNodes,
       ...nodes.slice(toIdx),
     ];
-  } else {
-    return [
-      ...nodes.slice(toIdx, fromIdx + 1),
-      ...newNodes,
-    ];
   }
+  return [
+    ...nodes.slice(0, toIdx + 1),
+    ...newNodes,
+    ...nodes.slice(fromIdx),
+  ];
 }
 
 interface EditorActions {
@@ -265,6 +264,7 @@ interface EditorActions {
   setIdealSpaceLength(px: number): void;
   lockBackbone(): void;
   unlockBackbone(): void;
+  clearBackbone(): void;
   getClosingSegmentId(): string | null;
 }
 
@@ -1185,6 +1185,27 @@ export const useEditorStore = create<EditorStore>()(
         conditionMarkers: [],
         weatherToken: null,
         nodes: stripNodeGameData(s.nodes),
+        selectedNodeIds: [],
+        selectedSegmentId: null,
+        selectedDesignerSegmentId: null,
+        layoutActiveAnchorId: null,
+        layoutPreviewBend: 0,
+      });
+    },
+
+    clearBackbone() {
+      const s = get();
+      if (s.nodes.length === 0 && s.designerSegments.length === 0) return;
+      get().snapshot();
+      set({
+        nodes: [],
+        designerSegments: [],
+        loopClosed: false,
+        backbonePhase: 'design',
+        tool: 'layout',
+        segmentData: [],
+        conditionMarkers: [],
+        weatherToken: null,
         selectedNodeIds: [],
         selectedSegmentId: null,
         selectedDesignerSegmentId: null,
