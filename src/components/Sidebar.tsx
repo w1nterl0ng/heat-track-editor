@@ -13,6 +13,7 @@ import { exportTrackLayoutJson } from '../lib/exportJson';
 import { exportV2Package, exportV2Bundle } from '../lib/exportV2';
 import { exportBoardImage } from '../lib/exportImage';
 import { exportBackgroundTiles, exportPreviewImage } from '../lib/exportTiles';
+import type { PressCornerLabel } from '../types/track';
 
 type Tab = 'track' | 'segments' | 'export';
 
@@ -42,6 +43,14 @@ export const Sidebar: React.FC<Props> = ({ stageRef }) => {
 
   const cornerNodes = nodes.filter(nd => nd.isCorner);
   const allSpeedsDefault = cornerNodes.length > 0 && cornerNodes.every(nd => nd.speedLimit === 4);
+
+  const REQUIRED_PRESS: PressCornerLabel[] = ['A', 'B', 'C', 'D'];
+  const assignedPress = new Set(
+    segmentData.map(sd => sd.pressCornerLabel).filter((l): l is PressCornerLabel => !!l),
+  );
+  const pressADCount = REQUIRED_PRESS.filter(l => assignedPress.has(l)).length;
+  const hasPressCornersAD = pressADCount === 4;
+  const missingPress = REQUIRED_PRESS.filter(l => !assignedPress.has(l));
 
   const hasAnyAggression = segmentData.some(sd =>
     (sd.legendCountdowns ?? [0, 0, 0, 0]).some(v => v > 0)
@@ -258,6 +267,15 @@ export const Sidebar: React.FC<Props> = ({ stageRef }) => {
                   : `${segsWithLegendsLine} of ${cornerCount} sector${cornerCount !== 1 ? 's' : ''} have a legends line`}
               />
               <CheckItem kind="fatal" ok={hasConditionMarkers} label="Condition markers placed" />
+              <CheckItem
+                kind="fatal"
+                ok={hasPressCornersAD}
+                label={hasPressCornersAD
+                  ? (assignedPress.has('E')
+                    ? 'Press corners assigned (A–E)'
+                    : 'At least 4 press corners assigned (A–D)')
+                  : `At least 4 press corners (A–D): ${pressADCount}/4${missingPress.length ? ` — missing ${missingPress.join(', ')}` : ''}`}
+              />
 
               <div style={{ ...styles.checklistSection, marginTop: 6 }}>WARNINGS</div>
               {hasLegendsLines && (

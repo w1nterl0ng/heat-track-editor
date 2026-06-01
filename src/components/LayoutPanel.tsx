@@ -11,18 +11,29 @@ export const LayoutPanel: React.FC = () => {
     setIdealSpaceLength,
     lockBackbone,
     unlockBackbone,
+    skipBackbone,
     clearBackbone,
     trackWidthPct,
   } = useEditorStore();
 
   const [confirmUnlock, setConfirmUnlock] = useState(false);
   const [confirmClear, setConfirmClear] = useState(false);
+  const [confirmSkip, setConfirmSkip] = useState(false);
 
   const mmPerPx = 28.5 / 2048;
   const idealMm = idealSpaceLengthPx * mmPerPx * 10;
   const canLock = backbonePhase === 'design' && loopClosed && nodes.length >= 4;
   const canUnlock = backbonePhase === 'locked' && designerSegments.length > 0;
   const canClear = nodes.length > 0 || designerSegments.length > 0;
+
+  const handleSkip = () => {
+    if (canClear && !confirmSkip) {
+      setConfirmSkip(true);
+      return;
+    }
+    skipBackbone();
+    setConfirmSkip(false);
+  };
 
   const handleClear = () => {
     if (!confirmClear) {
@@ -96,19 +107,49 @@ export const LayoutPanel: React.FC = () => {
             </div>
           )}
 
-          <button
-            onClick={lockBackbone}
-            disabled={!canLock}
-            title={canLock ? 'Lock backbone and continue to full editor' : 'Close the loop first'}
-            style={{ ...styles.btnPrimary, ...(!canLock ? styles.btnDisabled : {}), marginTop: canClear ? 8 : 0 }}
-          >
-            Lock backbone →
-          </button>
-          {!canLock && (
+          {canLock ? (
+            <button
+              onClick={lockBackbone}
+              title="Lock backbone and continue to full editor"
+              style={{ ...styles.btnPrimary, marginTop: canClear ? 8 : 0 }}
+            >
+              Lock backbone →
+            </button>
+          ) : (
+            <>
+              {canClear && (
+                <button
+                  type="button"
+                  disabled
+                  title="Close the loop first"
+                  style={{ ...styles.btnPrimary, ...styles.btnDisabled, marginTop: 8 }}
+                >
+                  Lock backbone →
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={handleSkip}
+                style={{
+                  ...(confirmSkip ? styles.btnDanger : styles.btnSecondary),
+                  marginTop: 8,
+                  ...(canClear ? {} : { background: '#164e63', border: '1px solid #22d3ee', color: '#a5f3fc', fontWeight: 600 }),
+                }}
+              >
+                {confirmSkip ? 'Confirm — skip to editor' : 'Skip backbone →'}
+              </button>
+              {confirmSkip && (
+                <p style={styles.warn}>
+                  Discards the current layout and opens the manual editor. Background image and track settings are kept.
+                </p>
+              )}
+            </>
+          )}
+          {!canLock && !confirmSkip && (
             <p style={styles.hint}>
-              {!loopClosed
-                ? 'Close the loop, then lock to add corners, surfaces, and exports.'
-                : 'Need at least 4 nodes to lock.'}
+              {canClear
+                ? 'Close the loop to lock, or skip to place nodes manually in the editor.'
+                : 'Place anchors and close the loop to lock — or skip to place nodes manually.'}
             </p>
           )}
         </>

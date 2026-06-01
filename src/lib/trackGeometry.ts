@@ -402,10 +402,17 @@ export function buildSpacePolygon(
 }
 
 export interface SpeedMarker {
+  nodeId: string;
   stickStart: Point;
   circleCenter: Point;
   circleRadius: number;
   speedLimit: number;
+  /** Unit tangent at the corner (forward along the track). */
+  tangent: Point;
+  /** Unit left-normal at the corner. */
+  normal: Point;
+  /** +1 when the lollipop is on the outer edge, -1 on inner. */
+  lollipopDir: number;
 }
 
 /**
@@ -433,6 +440,7 @@ export function buildSpeedMarkers(
       const edgeDist = halfWidth * dir;
       const totalDist = (halfWidth + stickLength) * dir;
       return {
+        nodeId: nd.id,
         stickStart: {
           x: s.point.x + s.normal.x * edgeDist,
           y: s.point.y + s.normal.y * edgeDist,
@@ -443,6 +451,9 @@ export function buildSpeedMarkers(
         },
         circleRadius,
         speedLimit: nd.speedLimit,
+        tangent: { ...s.tangent },
+        normal: { ...s.normal },
+        lollipopDir: dir,
       };
     });
 }

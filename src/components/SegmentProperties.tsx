@@ -1,5 +1,7 @@
 import React from 'react';
 import { useEditorStore, computeSegments } from '../store/editorStore';
+import { PRESS_CORNER_LABELS, type PressCornerLabel } from '../types/track';
+import { usedPressCornerLabels } from '../lib/pressCorners';
 
 export const SegmentProperties: React.FC = () => {
   const {
@@ -8,6 +10,7 @@ export const SegmentProperties: React.FC = () => {
     selectedSegmentId,
     updateSegmentData,
     updateCornerSpeedLimit,
+    setSectorPressCorner,
     setLegendCountdown,
     snapshot,
   } = useEditorStore();
@@ -139,6 +142,34 @@ export const SegmentProperties: React.FC = () => {
           value={endNode?.speedLimit ?? 4}
           onChange={e => endNode && updateCornerSpeedLimit(endNode.id, parseInt(e.target.value) || 1)}
         />
+      </Field>
+
+      {/* Press corner (Championship) */}
+      <Field label="Press corner (Championship)">
+        <select
+          style={styles.input}
+          value={sd.pressCornerLabel ?? ''}
+          onChange={e => {
+            const value = e.target.value;
+            setSectorPressCorner(
+              sd.startNodeId,
+              value === '' ? null : value as PressCornerLabel,
+            );
+          }}
+        >
+          <option value="">— None</option>
+          {PRESS_CORNER_LABELS.map(label => {
+            const taken = usedPressCornerLabels(segmentData, sd.startNodeId).has(label);
+            return (
+              <option key={label} value={label} disabled={taken}>
+                {label}{taken ? ' (assigned)' : ''}
+              </option>
+            );
+          })}
+        </select>
+        <div style={styles.fieldHint}>
+          Up to five corners may be labeled A–E for Championship events. Each letter once per track.
+        </div>
       </Field>
 
       {/* Finish line — read-only */}
@@ -292,6 +323,7 @@ const styles: Record<string, React.CSSProperties> = {
     display: 'block', color: '#64748b', fontSize: 10,
     marginBottom: 3, textTransform: 'uppercase', letterSpacing: '0.05em',
   },
+  fieldHint: { color: '#475569', fontSize: 10, lineHeight: 1.35, marginTop: 4 },
   input: {
     width: '100%', background: '#1e293b', border: '1px solid #334155',
     borderRadius: 4, color: '#e2e8f0', padding: '4px 8px',

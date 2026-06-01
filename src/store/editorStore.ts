@@ -12,6 +12,7 @@ import type {
   SurfaceSide,
   ConditionMarker,
   DesignerSegment,
+  PressCornerLabel,
 } from '../types/track';
 import { sampleSpline, extractShorterArc, pointAtArcFraction } from '../lib/spline';
 import {
@@ -180,6 +181,7 @@ interface EditorActions {
   toggleSpline(): void;
   toggleConditionMarkers(): void;
   toggleLollipops(): void;
+  toggleCars(): void;
   toggleTileGrid(): void;
 
   // Build phase
@@ -228,6 +230,7 @@ interface EditorActions {
 
   // Sector data
   updateSegmentData(startNodeId: string, patch: Partial<Omit<SegmentData, 'id' | 'startNodeId'>>): void;
+  setSectorPressCorner(startNodeId: string, label: PressCornerLabel | null): void;
   updateCornerSpeedLimit(nodeId: string, speedLimit: number): void;
   setSelectedSegment(id: string | null): void;
 
@@ -264,11 +267,23 @@ interface EditorActions {
   setIdealSpaceLength(px: number): void;
   lockBackbone(): void;
   unlockBackbone(): void;
+  skipBackbone(): void;
   clearBackbone(): void;
   getClosingSegmentId(): string | null;
 }
 
-type StateSnapshot = Omit<EditorState, 'backgroundImage'>;
+type ViewportState = Pick<EditorState, 'canvasWidth' | 'canvasHeight' | 'zoom' | 'panX' | 'panY'>;
+type StateSnapshot = Omit<EditorState, 'backgroundImage' | keyof ViewportState>;
+
+function currentViewport(s: EditorState): ViewportState {
+  return {
+    canvasWidth: s.canvasWidth,
+    canvasHeight: s.canvasHeight,
+    zoom: s.zoom,
+    panX: s.panX,
+    panY: s.panY,
+  };
+}
 
 interface EditorStore extends EditorState, EditorActions {
   _history: StateSnapshot[];
@@ -329,6 +344,7 @@ const defaultState: EditorState = {
   showSpline: true,
   showConditionMarkers: true,
   showLollipops: true,
+  showCars: false,
   checklistItems: {},
 };
 
@@ -352,15 +368,11 @@ function snapState(s: EditorState): StateSnapshot {
     conditionMarkers: s.conditionMarkers.map(m => ({ ...m })),
     weatherToken: s.weatherToken ? { ...s.weatherToken } : null,
     tool: s.tool,
-    canvasWidth: s.canvasWidth,
-    canvasHeight: s.canvasHeight,
-    zoom: s.zoom,
-    panX: s.panX,
-    panY: s.panY,
     showGrid: s.showGrid,
     showSpline: s.showSpline,
     showConditionMarkers: s.showConditionMarkers,
     showLollipops: s.showLollipops,
+    showCars: s.showCars,
     checklistItems: { ...s.checklistItems },
     backbonePhase: s.backbonePhase,
     designerSegments: s.designerSegments.map(seg => ({ ...seg })),
@@ -405,8 +417,10 @@ export const useEditorStore = create<EditorStore>()(
       if (_history.length === 0) return;
       const prev = _history[_history.length - 1];
       const currentSnap = snapState(get());
+      const viewport = currentViewport(get());
       set(st => ({
         ...prev,
+        ...viewport,
         _history: st._history.slice(0, -1),
         _future: [currentSnap, ...st._future.slice(0, 49)],
         spaceInput: null,
@@ -418,8 +432,10 @@ export const useEditorStore = create<EditorStore>()(
       if (_future.length === 0) return;
       const next = _future[0];
       const currentSnap = snapState(get());
+      const viewport = currentViewport(get());
       set(st => ({
         ...next,
+        ...viewport,
         _history: [...st._history.slice(-49), currentSnap],
         _future: st._future.slice(1),
         spaceInput: null,
@@ -439,6 +455,7 @@ export const useEditorStore = create<EditorStore>()(
     toggleSpline() { set(s => ({ showSpline: !s.showSpline })); },
     toggleConditionMarkers() { set(s => ({ showConditionMarkers: !s.showConditionMarkers })); },
     toggleLollipops() { set(s => ({ showLollipops: !s.showLollipops })); },
+    toggleCars() { set(s => ({ showCars: !s.showCars })); },
     toggleTileGrid() { set(s => ({ showTileGrid: !s.showTileGrid })); },
     setZoom(z) { set({ zoom: Math.max(0.1, Math.min(5, z)) }); },
     setPan(x, y) { set({ panX: x, panY: y }); },
@@ -803,6 +820,23 @@ export const useEditorStore = create<EditorStore>()(
       }));
     },
 
+    setSectorPressCorner(startNodeId, label) {
+      get().snapshot();
+      set(s => ({
+        segmentData: s.segmentData.map(sd => {
+          if (sd.startNodeId === startNodeId) {
+            return label
+              ? { ...sd, pressCornerLabel: label }
+              : { ...sd, pressCornerLabel: undefined };
+          }
+          if (label && sd.pressCornerLabel === label) {
+            return { ...sd, pressCornerLabel: undefined };
+          }
+          return sd;
+        }),
+      }));
+    },
+
     setLegendCountdown(startNodeId, position, aggression) {
       get().snapshot();
       set(s => ({
@@ -942,6 +976,7 @@ export const useEditorStore = create<EditorStore>()(
 
       set({
         ...state,
+        ...currentViewport(get()),
         _history: [],
         _future: [],
         spaceInput: null,
@@ -952,8 +987,11 @@ export const useEditorStore = create<EditorStore>()(
     },
 
     resetAll() {
+      const { canvasWidth, canvasHeight } = get();
       set({
         ...defaultState,
+        canvasWidth,
+        canvasHeight,
         _history: [],
         _future: [],
         spaceInput: null,
@@ -1171,6 +1209,27 @@ export const useEditorStore = create<EditorStore>()(
         layoutActiveAnchorId: null,
         layoutPreviewBend: 0,
         selectedDesignerSegmentId: null,
+      });
+    },
+
+    skipBackbone() {
+      const s = get();
+      if (s.backbonePhase !== 'design') return;
+      get().snapshot();
+      set({
+        backbonePhase: 'locked',
+        tool: 'edit',
+        nodes: [],
+        designerSegments: [],
+        loopClosed: false,
+        segmentData: [],
+        conditionMarkers: [],
+        weatherToken: null,
+        selectedNodeIds: [],
+        selectedSegmentId: null,
+        selectedDesignerSegmentId: null,
+        layoutActiveAnchorId: null,
+        layoutPreviewBend: 0,
       });
     },
 

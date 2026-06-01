@@ -27,6 +27,7 @@
 import JSZip from 'jszip';
 import type { EditorState, TrackNode } from '../types/track';
 import { computeSegments } from '../store/editorStore';
+import { buildPressCornersMap } from './pressCorners';
 import { downloadFile } from './exportYaml';
 import { addTilesToZip, addPreviewToZip } from './exportTiles';
 
@@ -162,6 +163,7 @@ export function buildV2Object(state: EditorState): Record<string, unknown> {
       legendCountdowns:     countdowns,
     };
     if (surfaces.length > 0) sectorObj.surfaces = surfaces;
+    if (sd?.pressCornerLabel) sectorObj.pressCornerLabel = sd.pressCornerLabel;
     return sectorObj;
   });
 
@@ -194,6 +196,8 @@ export function buildV2Object(state: EditorState): Record<string, unknown> {
     rotation: Math.round(m.rotation * 10)  / 10,
   }));
 
+  const pressCorners = buildPressCornersMap(segmentData, computed);
+
   // ── Assemble ───────────────────────────────────────────────────────────────
   const obj: Record<string, unknown> = {
     schemaVersion: 2,
@@ -219,6 +223,7 @@ export function buildV2Object(state: EditorState): Record<string, unknown> {
     cornerIndices,
     ...(phantomIndices.length > 0 ? { phantomIndices } : {}),
   };
+  if (Object.keys(pressCorners).length > 0) obj.pressCorners = pressCorners;
   if (markers.length > 0) obj.conditionMarkers = markers;
   if (weatherToken) {
     obj.weatherToken = {

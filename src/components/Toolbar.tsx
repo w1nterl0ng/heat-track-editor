@@ -1,7 +1,7 @@
 import React, { useRef, useState, useEffect } from 'react';
 import { useEditorStore } from '../store/editorStore';
 
-const CHECKLIST_TOTAL = 21; // keep in sync with ChecklistPanel TOTAL
+const CHECKLIST_TOTAL = 22; // keep in sync with ChecklistPanel TOTAL
 
 const TOOLS = [
   { mode: 'layout' as const,     label: 'Layout',    icon: '⌖', title: 'Draw track layout (P)',         shortcut: 'P', designOnly: true },
@@ -21,10 +21,12 @@ export const Toolbar: React.FC = () => {
     showSpline,
     showConditionMarkers,
     showLollipops,
+    showCars,
     toggleGrid,
     toggleSpline,
     toggleConditionMarkers,
     toggleLollipops,
+    toggleCars,
     setBackgroundImage,
     exportPackage,
     loadPackage,
@@ -162,6 +164,14 @@ export const Toolbar: React.FC = () => {
       >
         <span style={styles.toolIcon}>⊙</span>
         <span style={styles.toolLabel}>Lollis</span>
+      </button>
+      <button
+        onClick={toggleCars}
+        title="Toggle car footprints — race line + outside per space"
+        style={{ ...styles.toolBtn, ...(showCars ? styles.toolBtnActive : {}) }}
+      >
+        <span style={styles.toolIcon}>▮</span>
+        <span style={styles.toolLabel}>Cars</span>
       </button>
       <button
         onClick={toggleConditionMarkers}

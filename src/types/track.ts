@@ -51,6 +51,11 @@ export type SurfaceSide = 'both' | 'inside' | 'outside';
 
 export type RaceLine = 'L' | 'R';
 
+/** Championship press-corner slot label (A–E). Each label may appear at most once per track. */
+export type PressCornerLabel = 'A' | 'B' | 'C' | 'D' | 'E';
+
+export const PRESS_CORNER_LABELS: PressCornerLabel[] = ['A', 'B', 'C', 'D', 'E'];
+
 /**
  * A single node in the track spline.
  * Every edge between adjacent nodes equals one playable space,
@@ -135,6 +140,11 @@ export interface SegmentData {
    * Defaults to 'inner' when absent. Editor-only — not included in game exports.
    */
   countdownSide?: 'inner' | 'outer';
+  /**
+   * Championship press-corner slot for the exit corner of this sector (C1, C2, …).
+   * Each label A–E may be assigned to at most one sector per track.
+   */
+  pressCornerLabel?: PressCornerLabel;
 }
 
 export interface TrackMeta {
@@ -189,6 +199,8 @@ export interface EditorState {
   showSpline: boolean;
   showConditionMarkers: boolean;
   showLollipops: boolean;
+  /** Car footprint overlay for spacing / corner-radius checks. */
+  showCars: boolean;
   /**
    * Per-item checked state for the track creation checklist.
    * Keys are static item IDs defined in ChecklistPanel.tsx.

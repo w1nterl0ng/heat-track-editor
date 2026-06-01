@@ -47,6 +47,9 @@ export const SegmentList: React.FC = () => {
                 </div>
                 <div style={styles.itemMeta}>
                   {seg.spaces} spaces · {sd?.raceLine ?? 'L'} · limit {endNode?.speedLimit ?? 4}
+                  {sd?.pressCornerLabel && (
+                    <span style={styles.pressBadge}> · Press {sd.pressCornerLabel}</span>
+                  )}
                 </div>
               </div>
             </div>
@@ -96,5 +99,6 @@ const styles: Record<string, React.CSSProperties> = {
     padding: '1px 4px', borderRadius: 2,
   },
   itemMeta: { color: '#475569', fontSize: 10 },
+  pressBadge: { color: '#fbbf24', fontWeight: 600 },
   chevron: { color: '#334155', fontSize: 14 },
 };

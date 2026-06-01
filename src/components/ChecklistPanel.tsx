@@ -84,6 +84,11 @@ const CHECKLIST_GROUPS: ChecklistGroup[] = [
         help: 'Set the corner speed limit (end of each sector) in the Sectors tab. The default is 4 — most real corners should differ from this.',
       },
       {
+        id: 'press_corners',
+        label: 'At least 4 press corners assigned',
+        help: 'In the Sectors tab, assign Press corner labels to each Championship press corner on the track. At least A–D are required; add E if the board has a fifth press corner. Each letter can only be used once.',
+      },
+      {
         id: 'lollipop_sides',
         label: 'Corner lollipop sides set',
         help: 'Select a corner node and press I to flip which side its speed-limit sign appears on. The current side is shown in the Sectors tab. Set the post on whichever edge faces the driver approaching the corner.',

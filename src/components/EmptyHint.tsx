@@ -6,10 +6,20 @@ export const EmptyHint: React.FC = () => {
 
   if (backbonePhase !== 'design') {
     if (loopClosed) return null;
-    if (nodes.length === 0) return null;
+    if (nodes.length === 0) {
+      return (
+        <div style={styles.hint}>
+          <div style={styles.step}>Click to place the first track node</div>
+        </div>
+      );
+    }
     return (
       <div style={styles.hint}>
-        <div style={styles.step}>Use legacy node placement or switch to Layout tool (P)</div>
+        {nodes.length >= 3 ? (
+          <div style={styles.step}>Click the <span style={styles.amber}>amber ring</span> on the first node to close the loop</div>
+        ) : (
+          <div style={styles.step}>Click to place nodes · close the loop when ready</div>
+        )}
       </div>
     );
   }
@@ -31,6 +41,7 @@ export const EmptyHint: React.FC = () => {
         <div style={styles.step}>② Move mouse — preview shows auto-spaced segment</div>
         <div style={styles.step}>③ Ctrl+scroll to bend · click to place next anchor</div>
         <div style={styles.step}>④ Double-click a segment to split · click <span style={styles.amber}>amber ring</span> to close</div>
+        <div style={styles.step}>Or <strong style={{ color: '#a5f3fc' }}>Skip backbone</strong> in the sidebar to use manual node placement</div>
       </div>
     );
   }

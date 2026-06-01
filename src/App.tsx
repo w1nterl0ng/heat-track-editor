@@ -47,14 +47,22 @@ export const App: React.FC = () => {
   useEffect(() => {
     const el = canvasContainerRef.current;
     if (!el) return;
-    const obs = new ResizeObserver(entries => {
-      for (const entry of entries) {
-        const { width, height } = entry.contentRect;
-        if (width > 0 && height > 0) setCanvasSize(Math.floor(width), Math.floor(height));
+
+    const updateSize = () => {
+      const { width, height } = el.getBoundingClientRect();
+      if (width > 0 && height > 0) {
+        setCanvasSize(Math.floor(width), Math.floor(height));
       }
-    });
+    };
+
+    updateSize();
+    const obs = new ResizeObserver(updateSize);
     obs.observe(el);
-    return () => obs.disconnect();
+    window.addEventListener('resize', updateSize);
+    return () => {
+      obs.disconnect();
+      window.removeEventListener('resize', updateSize);
+    };
   }, [setCanvasSize]);
 
   // Keyboard shortcuts
@@ -250,6 +258,7 @@ const styles: Record<string, React.CSSProperties> = {
   canvasWrapper: {
     flex: 1, minWidth: 0, position: 'relative',
     overflow: 'hidden', background: '#1a1a2e',
+    display: 'flex',
   },
   zoomBadge: {
     position: 'absolute', bottom: 12, left: 12,

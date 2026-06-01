@@ -24,6 +24,7 @@ import {
   buildPhantomOverlays,
   SURFACE_COLORS,
 } from '../lib/trackGeometry';
+import { buildCarOverlays } from '../lib/carOverlay';
 
 const SAMPLES_PER_EDGE = 16;
 const TRACK_HIT_EXTRA = 12;
@@ -61,9 +62,11 @@ export const TrackCanvas: React.FC<Props> = ({ stageRef }) => {
     showSpline,
     showConditionMarkers,
     showLollipops,
+    showCars,
     selectedNodeIds,
     selectedSegmentId,
     spaceInput,
+    closeLoop,
     appendNode,
     updateNodePosition,
     insertNodeOnEdge,
@@ -219,6 +222,13 @@ export const TrackCanvas: React.FC<Props> = ({ stageRef }) => {
     [samples, nodes, halfWidth]
   );
 
+  const carOverlays = useMemo(
+    () => (showCars && samples.length >= 4
+      ? buildCarOverlays(samples, nodes, SAMPLES_PER_EDGE, trackWidthPx, segmentData)
+      : []),
+    [showCars, samples, nodes, trackWidthPx, segmentData],
+  );
+
   const raceLineArcs = useMemo(
     () => (samples.length >= 4 ? buildRaceLineArcs(samples, nodes, SAMPLES_PER_EDGE, segmentData, halfWidth) : []),
     [samples, nodes, segmentData, halfWidth]
@@ -238,6 +248,17 @@ export const TrackCanvas: React.FC<Props> = ({ stageRef }) => {
     () => (samples.length >= 4 ? buildSpeedMarkers(samples, nodes, SAMPLES_PER_EDGE, halfWidth) : []),
     [samples, nodes, halfWidth]
   );
+
+  const pressCornerByEndNodeId = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const seg of computed) {
+      const sd = segmentData.find(d => d.startNodeId === seg.startNodeId);
+      if (sd?.pressCornerLabel) {
+        map.set(seg.endNodeId, sd.pressCornerLabel);
+      }
+    }
+    return map;
+  }, [computed, segmentData]);
 
   const surfaceOverlays = useMemo(
     () => (samples.length >= 4
@@ -365,16 +386,31 @@ export const TrackCanvas: React.FC<Props> = ({ stageRef }) => {
     && designerSegments.length >= 2
     && layoutActiveAnchorId !== nodes[0]?.id;
 
+  const canCloseManualLoop = backbonePhase === 'locked'
+    && !loopClosed
+    && nodes.length >= 3
+    && tool === 'edit';
+
+  const loopCloseSnapRadius = 48 / Math.max(zoom, 0.1);
+
   const handleNodeClick = useCallback(
     (e: Konva.KonvaEventObject<MouseEvent>, _nodeId: string, isFirst: boolean) => {
-      if (tool !== 'layout' || backbonePhase !== 'design') return;
       if (dragHasMoved.current) return;
-      e.cancelBubble = true;
-      if (isFirst && canCloseLoop) {
-        layoutCloseLoop();
+
+      if (tool === 'layout' && backbonePhase === 'design') {
+        e.cancelBubble = true;
+        if (isFirst && canCloseLoop) {
+          layoutCloseLoop();
+        }
+        return;
+      }
+
+      if (isFirst && canCloseManualLoop) {
+        e.cancelBubble = true;
+        closeLoop();
       }
     },
-    [tool, backbonePhase, canCloseLoop, layoutCloseLoop],
+    [tool, backbonePhase, canCloseLoop, canCloseManualLoop, layoutCloseLoop, closeLoop],
   );
 
   const handleStageClick = useCallback(
@@ -396,6 +432,14 @@ export const TrackCanvas: React.FC<Props> = ({ stageRef }) => {
 
       if (!loopClosed) {
         if (backbonePhase === 'design') return;
+        const firstNode = nodes[0];
+        if (firstNode && nodes.length >= 3 && tool === 'edit') {
+          const dist = Math.hypot(pos.x - firstNode.x, pos.y - firstNode.y);
+          if (dist < loopCloseSnapRadius) {
+            closeLoop();
+            return;
+          }
+        }
         appendNode(pos.x, pos.y);
         return;
       }
@@ -416,7 +460,7 @@ export const TrackCanvas: React.FC<Props> = ({ stageRef }) => {
         clearSelection();
       }
     },
-    [loopClosed, appendNode, tool, ghostPos, insertNodeOnEdge, screenToWorld, clearSelection, backbonePhase, layoutClick]
+    [loopClosed, appendNode, closeLoop, tool, ghostPos, insertNodeOnEdge, screenToWorld, clearSelection, backbonePhase, layoutClick, nodes, loopCloseSnapRadius]
   );
 
   const handleWheel = useCallback(
@@ -534,7 +578,7 @@ export const TrackCanvas: React.FC<Props> = ({ stageRef }) => {
   }, [showTileGrid, tileColumns, tileRows]);
 
   return (
-    <div style={{ position: 'relative', width: canvasWidth, height: canvasHeight }}>
+    <div style={{ position: 'relative', width: '100%', height: '100%', flex: 1, minWidth: 0, minHeight: 0 }}>
       <Stage
         ref={stageRef as React.RefObject<Konva.Stage>}
         width={canvasWidth}
@@ -949,7 +993,17 @@ export const TrackCanvas: React.FC<Props> = ({ stageRef }) => {
             ))}
 
             {/* Speed markers — sizes in world space */}
-            {backbonePhase === 'locked' && showLollipops && speedMarkers.map((m, i) => (
+            {backbonePhase === 'locked' && showLollipops && speedMarkers.map((m, i) => {
+              const pressLabel = pressCornerByEndNodeId.get(m.nodeId);
+              const badgeR = m.circleRadius * 0.34;
+              const rimDx = m.tangent.x - m.normal.x * m.lollipopDir;
+              const rimDy = m.tangent.y - m.normal.y * m.lollipopDir;
+              const rimLen = Math.hypot(rimDx, rimDy) || 1;
+              const badgeDist = m.circleRadius - badgeR * 0.2;
+              const badgeX = m.circleCenter.x + (rimDx / rimLen) * badgeDist;
+              const badgeY = m.circleCenter.y + (rimDy / rimLen) * badgeDist;
+
+              return (
               <Group key={`spd-${i}`} listening={false}>
                 <Line
                   points={[m.stickStart.x, m.stickStart.y, m.circleCenter.x, m.circleCenter.y]}
@@ -972,8 +1026,30 @@ export const TrackCanvas: React.FC<Props> = ({ stageRef }) => {
                   align="center"
                   verticalAlign="middle"
                 />
+                {pressLabel && (
+                  <>
+                    <Circle
+                      x={badgeX} y={badgeY}
+                      radius={badgeR}
+                      fill="#dc2626" stroke="#ffffff" strokeWidth={halfWidth * 0.035}
+                    />
+                    <Text
+                      x={badgeX - badgeR}
+                      y={badgeY - badgeR}
+                      width={badgeR * 2}
+                      height={badgeR * 2}
+                      text={pressLabel}
+                      fill="#ffffff"
+                      fontSize={badgeR * 1.15}
+                      fontStyle="bold"
+                      align="center"
+                      verticalAlign="middle"
+                    />
+                  </>
+                )}
               </Group>
-            ))}
+              );
+            })}
 
             {/* Selected sector highlight */}
             {sectorHighlight && sectorHighlight.length > 0 && (
@@ -1288,11 +1364,39 @@ export const TrackCanvas: React.FC<Props> = ({ stageRef }) => {
           </Group>
         </Layer>
 
+        {/* Car footprints — own layer so toggle fully clears both spots (Konva orphan fix) */}
+        {backbonePhase === 'locked' && showCars && (
+          <Layer listening={false}>
+            <Group x={panX} y={panY} scaleX={zoom} scaleY={zoom}>
+              {carOverlays.map(car => (
+                <Group
+                  key={`${car.nodeId}-${car.spot}`}
+                  x={car.center.x}
+                  y={car.center.y}
+                  rotation={car.rotation}
+                  listening={false}
+                >
+                  <Rect
+                    x={-car.length / 2}
+                    y={-car.width / 2}
+                    width={car.length}
+                    height={car.width}
+                    fill={car.spot === 'race' ? 'rgba(255, 255, 255, 0.32)' : 'rgba(200, 210, 220, 0.26)'}
+                    stroke={car.spot === 'race' ? 'rgba(255, 255, 255, 0.85)' : 'rgba(200, 210, 220, 0.65)'}
+                    strokeWidth={1.5 / zoom}
+                    cornerRadius={car.width * 0.12}
+                  />
+                </Group>
+              ))}
+            </Group>
+          </Layer>
+        )}
+
         {/* ── Node handles ─────────────────────────────── */}
         <Layer name="handles">
           <Group x={panX} y={panY} scaleX={zoom} scaleY={zoom}>
             {/* Clickable close-loop target around first anchor */}
-            {canCloseLoop && nodes.length > 0 && (
+            {(canCloseLoop || canCloseManualLoop) && nodes.length > 0 && (
               <>
                 <Circle
                   x={nodes[0].x}
@@ -1304,11 +1408,13 @@ export const TrackCanvas: React.FC<Props> = ({ stageRef }) => {
                   dash={[6 / zoom, 4 / zoom]}
                   onClick={e => {
                     e.cancelBubble = true;
-                    layoutCloseLoop();
+                    if (canCloseLoop) layoutCloseLoop();
+                    else closeLoop();
                   }}
                   onTap={e => {
                     e.cancelBubble = true;
-                    layoutCloseLoop();
+                    if (canCloseLoop) layoutCloseLoop();
+                    else closeLoop();
                   }}
                 />
               </>
@@ -1385,7 +1491,7 @@ export const TrackCanvas: React.FC<Props> = ({ stageRef }) => {
                     onDragEnd={e => handleNodeDragEnd(e, nd.id)}
                     onClick={e => handleNodeClick(e, nd.id, isFirst)}
                   />
-                  {isFirst && !loopClosed && nodes.length >= 3 && backbonePhase !== 'design' && (
+                  {isFirst && !loopClosed && nodes.length >= 3 && backbonePhase !== 'design' && !canCloseManualLoop && (
                     <Circle x={nd.x} y={nd.y}
                       radius={(FIRST_NODE_RADIUS + 6) / zoom}
                       stroke="#f59e0b" strokeWidth={1.5 / zoom}

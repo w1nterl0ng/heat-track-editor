@@ -1,6 +1,7 @@
 import yaml from 'js-yaml';
 import type { EditorState, TrackNode } from '../types/track';
 import { computeSegments } from '../store/editorStore';
+import { buildPressCornersMap } from './pressCorners';
 
 export function buildYamlObject(state: EditorState): Record<string, unknown> {
   const { meta, nodes, segmentData, conditionMarkers, tileColumns, tileRows } = state;
@@ -54,6 +55,7 @@ export function buildYamlObject(state: EditorState): Record<string, unknown> {
       gameSpaceIndex++;
     }
     if (surfaces.length > 0) obj.surfaces = surfaces;
+    if (sd?.pressCornerLabel) obj.pressCornerLabel = sd.pressCornerLabel;
 
     return obj;
   });
@@ -65,6 +67,8 @@ export function buildYamlObject(state: EditorState): Record<string, unknown> {
     y: Math.round(m.y * 100) / 100,
     rotation: Math.round(m.rotation * 10) / 10,
   }));
+
+  const pressCorners = buildPressCornersMap(segmentData, computed);
 
   return {
     schemaVersion: 1,
@@ -81,6 +85,7 @@ export function buildYamlObject(state: EditorState): Record<string, unknown> {
     tileSizePx: 2048,
     tileSizeCm: 28.5,
     segments: yamlSegments,
+    ...(Object.keys(pressCorners).length > 0 ? { pressCorners } : {}),
     ...(yamlMarkers.length > 0 ? { conditionMarkers: yamlMarkers } : {}),
   };
 }
