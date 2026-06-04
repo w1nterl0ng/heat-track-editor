@@ -11,12 +11,14 @@ Intended for beta testers on **macOS** and **Windows**.
 
 **Open the editor** in your browser:
 
-- **Live (recommended):** [https://fredanderson.github.io/heat-track-editor/](https://fredanderson.github.io/heat-track-editor/)
+- **Live (recommended):** [https://w1nterl0ng.github.io/heat-track-editor/](https://w1nterl0ng.github.io/heat-track-editor/)
 - **Local dev:** Run `npm install && npm run dev` inside `heat-track-editor/`, then open `http://localhost:5173/heat-track-editor/`
 
 **Open the in-editor checklist** by clicking the **Track Creation Guide** button in the toolbar. It tracks your progress across all 22 steps and saves your state with the file.
 
-<!-- [SCREENSHOT: The toolbar with the Track Creation Guide button highlighted] -->
+![image-20260603132724381](/Users/fredanderson/Coding/heat-track-editor/docs/images/image-20260603132724381.png)
+
+
 
 > **Save early and often.** Use the **💾 Save** button in the toolbar to export a `.hte` file — your full working package. Keep this file safe; it is the only format that preserves all editor settings and your checklist progress.
 
