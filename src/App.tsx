@@ -115,7 +115,7 @@ export const App: React.FC = () => {
       // Node operations (when 1 or 2 nodes selected)
       if (selectedNodeIds.length >= 1) {
         // C — toggle corner on all selected nodes
-        if (e.key === 'c' || e.key === 'C') {
+        if (e.key === 'c' || e.key === 'C' || e.code === 'KeyC') {
           if (!loopClosed || backbonePhase !== 'locked') return;
           e.preventDefault();
           selectedNodeIds.forEach(id => toggleNodeCorner(id));
@@ -124,7 +124,7 @@ export const App: React.FC = () => {
         }
 
         // F — set finish line on first selected node
-        if (e.key === 'f' || e.key === 'F') {
+        if (e.key === 'f' || e.key === 'F' || e.code === 'KeyF') {
           e.preventDefault();
           if (selectedNodeIds[0]) setNodeFinishLine(selectedNodeIds[0]);
           clearSelection();
@@ -132,7 +132,7 @@ export const App: React.FC = () => {
         }
 
         // L — toggle legends line on first selected node
-        if (e.key === 'l' || e.key === 'L') {
+        if (e.key === 'l' || e.key === 'L' || e.code === 'KeyL') {
           e.preventDefault();
           if (selectedNodeIds[0]) toggleNodeLegendsLine(selectedNodeIds[0]);
           clearSelection();
@@ -140,7 +140,7 @@ export const App: React.FC = () => {
         }
 
         // I — flip lollipop side(s) on the selected node
-        if (e.key === 'i' || e.key === 'I') {
+        if (e.key === 'i' || e.key === 'I' || e.code === 'KeyI') {
           e.preventDefault();
           if (selectedNodeIds[0]) flipLollipopSide(selectedNodeIds[0]);
           clearSelection();
@@ -148,7 +148,7 @@ export const App: React.FC = () => {
         }
 
         // H — toggle phantom (bridge crossing) on selected nodes
-        if (e.key === 'h' || e.key === 'H') {
+        if (e.key === 'h' || e.key === 'H' || e.code === 'KeyH') {
           e.preventDefault();
           selectedNodeIds.forEach(id => toggleNodePhantom(id));
           clearSelection();
@@ -169,15 +169,15 @@ export const App: React.FC = () => {
 
       // Surface mode shortcuts — set the active brush type/side
       if (tool === 'surface' && backbonePhase === 'locked') {
-        switch (e.key) {
-          case 'p': case 'P': e.preventDefault(); setActiveSurface('plain');   return;
-          case 'g': case 'G': e.preventDefault(); setActiveSurface('gravel');  return;
-          case 'w': case 'W': e.preventDefault(); setActiveSurface('flooded'); return;
-          case 't': case 'T': e.preventDefault(); setActiveSurface('tunnel');  return;
-          case '1': e.preventDefault(); setActiveSurface(activeSurfaceType, 'both');    return;
-          case '2': e.preventDefault(); setActiveSurface(activeSurfaceType, 'outside'); return;
-          case '3': e.preventDefault(); setActiveSurface(activeSurfaceType, 'inside');  return;
-        }
+        const sk = e.key.toLowerCase();
+        const sc = e.code;
+        if (sk === 'p' || sc === 'KeyP') { e.preventDefault(); setActiveSurface('plain');   return; }
+        if (sk === 'g' || sc === 'KeyG') { e.preventDefault(); setActiveSurface('gravel');  return; }
+        if (sk === 'w' || sc === 'KeyW') { e.preventDefault(); setActiveSurface('flooded'); return; }
+        if (sk === 't' || sc === 'KeyT') { e.preventDefault(); setActiveSurface('tunnel');  return; }
+        if (e.key === '1' || sc === 'Digit1') { e.preventDefault(); setActiveSurface(activeSurfaceType, 'both');    return; }
+        if (e.key === '2' || sc === 'Digit2') { e.preventDefault(); setActiveSurface(activeSurfaceType, 'outside'); return; }
+        if (e.key === '3' || sc === 'Digit3') { e.preventDefault(); setActiveSurface(activeSurfaceType, 'inside');  return; }
       }
 
       // Layout: reset curve to straight
@@ -190,15 +190,15 @@ export const App: React.FC = () => {
       }
 
       // Tool / view shortcuts (no node required)
-      switch (e.key) {
-        case 'p': case 'P': setTool('layout'); break;
-        case 'v': case 'V': setTool('edit'); break;
-        case 's': case 'S': setTool('surface'); break;
-        case 'd': case 'D': setTool('condition'); break;
-        case 'b': case 'B': setTool('background'); break;
-        case '+': case '=': setZoom(zoom * 1.2); break;
-        case '-': setZoom(zoom / 1.2); break;
-      }
+      const tk = e.key.toLowerCase();
+      const tc = e.code;
+      if (tk === 'p' || tc === 'KeyP') { setTool('layout'); return; }
+      if (tk === 'v' || tc === 'KeyV') { setTool('edit'); return; }
+      if (tk === 's' || tc === 'KeyS') { setTool('surface'); return; }
+      if (tk === 'd' || tc === 'KeyD') { setTool('condition'); return; }
+      if (tk === 'b' || tc === 'KeyB') { setTool('background'); return; }
+      if (e.key === '+' || e.key === '=' || tc === 'Equal') { setZoom(zoom * 1.2); return; }
+      if (e.key === '-' || tc === 'Minus') { setZoom(zoom / 1.2); return; }
     };
 
     window.addEventListener('keydown', onKey);
