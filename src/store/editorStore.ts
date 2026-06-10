@@ -675,6 +675,7 @@ export const useEditorStore = create<EditorStore>()(
       const worldHeight = tileRows * 2048;
       const offsetOut = Math.min(worldWidth, worldHeight) * 0.04; // push markers slightly off-track
       let sectorNum = 1;
+      let cornerNum = 0;
 
       computed.forEach((seg, i) => {
         const sd = segmentData.find(d => d.startNodeId === seg.startNodeId);
@@ -698,20 +699,22 @@ export const useEditorStore = create<EditorStore>()(
         // Corner marker at the END of this segment.
         // Suppress if THIS segment is a chicane (no corner at its end)
         // OR if the NEXT segment is a chicane (no corner at its start).
-        // Label uses i+1 (sector-order number) so it matches the game engine's
-        // corner index, keeping the board label consistent with CLI output ("C4"
-        // on the board = corner index 3 = "C4" in the engine).
+        // Uses a sequential counter (cornerNum) that only increments for placed
+        // corners, matching the engine's sequential C-label numbering (C1, C2, C3…)
+        // which skips chicane pairs. Using the absolute sector index (i+1) would
+        // produce gaps like C1, C4, C5 on tracks with mid-circuit chicanes.
         const nextSeg = computed[(i + 1) % computed.length];
         const nextSd = segmentData.find(d => d.startNodeId === nextSeg.startNodeId);
         const nextIsChicane = nextSd?.isChicane ?? false;
 
         if (!isChicane && !nextIsChicane) {
+          cornerNum++;
           const endNode = nodes[seg.endNodeIndex];
           const cornerSample = samples[(seg.endNodeIndex * SAMPLES_PER_EDGE_CM) % samples.length];
           markers.push({
             id: uid(),
             type: 'corner',
-            label: `C${i + 1}`,
+            label: `C${cornerNum}`,
             x: endNode.x + cornerSample.normal.x * offsetOut,
             y: endNode.y + cornerSample.normal.y * offsetOut,
             rotation: 0,
