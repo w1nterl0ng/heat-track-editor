@@ -2,6 +2,8 @@ import React, { useEffect, useRef } from 'react';
 import Konva from 'konva';
 import { Toolbar } from './components/Toolbar';
 import { TrackCanvas } from './components/TrackCanvas';
+import { StyleCanvas } from './components/StyleCanvas';
+import { StylePanel } from './components/StylePanel';
 import { Sidebar } from './components/Sidebar';
 import { EmptyHint } from './components/EmptyHint';
 import { ChecklistPanel } from './components/ChecklistPanel';
@@ -41,6 +43,7 @@ export const App: React.FC = () => {
     layoutResetBend,
     selectedDesignerSegmentId,
     layoutActiveAnchorId,
+    appMode,
   } = useEditorStore();
 
   // Resize canvas to always fill the available workspace
@@ -219,12 +222,22 @@ export const App: React.FC = () => {
       <Toolbar />
       <div style={styles.workspace}>
         <div style={styles.canvasWrapper} ref={canvasContainerRef}>
-          {checklistOpen && <ChecklistPanel />}
-          <TrackCanvas stageRef={stageRef} />
-          <EmptyHint />
+          {appMode === 'style' ? (
+            <StyleCanvas stageRef={stageRef} />
+          ) : (
+            <>
+              {checklistOpen && <ChecklistPanel />}
+              <TrackCanvas stageRef={stageRef} />
+              <EmptyHint />
+            </>
+          )}
           <ZoomIndicator />
         </div>
-        <Sidebar stageRef={stageRef} />
+        {appMode === 'style' ? (
+          <StylePanel stageRef={stageRef} />
+        ) : (
+          <Sidebar stageRef={stageRef} />
+        )}
       </div>
     </div>
   );

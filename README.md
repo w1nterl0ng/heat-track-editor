@@ -2,7 +2,9 @@
 
 A standalone browser-based tool for authoring race track maps for the **Heat: Pedal to the Metal** board game and its expansions.
 
-Live at: https://fredanderson.github.io/heat-track-editor/
+Live at: https://w1nterl0ng.github.io/heat-track-editor/
+
+Download the game, report issues, and find documentation at **[heat-public](https://github.com/w1nterl0ng/heat-public)**.
 
 ## Running locally
 

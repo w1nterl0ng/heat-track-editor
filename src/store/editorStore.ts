@@ -15,6 +15,7 @@ import type {
   PressCornerLabel,
   PodiumSlot,
 } from '../types/track';
+import { DEFAULT_STYLE_ID } from '../lib/stylePresets';
 import { sampleSpline, extractShorterArc, pointAtArcFraction } from '../lib/spline';
 import {
   DEFAULT_IDEAL_SPACE_LENGTH_PX,
@@ -304,6 +305,10 @@ interface EditorStore extends EditorState, EditorActions {
   toggleChecklist(): void;
   toggleChecklistItem(id: string): void;
   resetChecklist(): void;
+  /** Whether the user is in the main editor or the Style preview mode. Transient — not persisted. */
+  appMode: 'editor' | 'style';
+  setAppMode(mode: 'editor' | 'style'): void;
+  setActiveStyleId(id: string): void;
 }
 
 const DEFAULT_CANVAS = 1200;
@@ -355,6 +360,7 @@ const defaultState: EditorState = {
   showLollipops: true,
   showCars: false,
   checklistItems: {},
+  activeStyleId: DEFAULT_STYLE_ID,
 };
 
 function snapState(s: EditorState): StateSnapshot {
@@ -384,6 +390,7 @@ function snapState(s: EditorState): StateSnapshot {
     showLollipops: s.showLollipops,
     showCars: s.showCars,
     checklistItems: { ...s.checklistItems },
+    activeStyleId: s.activeStyleId,
     backbonePhase: s.backbonePhase,
     designerSegments: s.designerSegments.map(seg => ({ ...seg })),
     idealSpaceLengthPx: s.idealSpaceLengthPx,
@@ -406,6 +413,7 @@ export const useEditorStore = create<EditorStore>()(
     spaceInput: null,
     migrationNotice: null,
     checklistOpen: false,
+    appMode: 'editor' as const,
     activeSurfaceType: 'gravel' as SurfaceType,
     activeSurfaceSide: 'both' as SurfaceSide,
     layoutActiveAnchorId: null,
@@ -918,6 +926,8 @@ export const useEditorStore = create<EditorStore>()(
       }));
     },
     resetChecklist() { set({ checklistItems: {} }); },
+    setAppMode(mode) { set({ appMode: mode }); },
+    setActiveStyleId(id) { set({ activeStyleId: id }); },
 
     async exportPackage() {
       const s = get();

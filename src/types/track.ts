@@ -216,6 +216,8 @@ export interface EditorState {
    * Persisted in .hte but excluded from all game export formats.
    */
   checklistItems: Record<string, boolean>;
+  /** ID of the active TrackStyle preset. Persisted in .hte. */
+  activeStyleId: string;
 
   /** Layout designer: backbone editing vs locked for full editor. */
   backbonePhase: BackbonePhase;

@@ -1,0 +1,111 @@
+import type { TrackStyle } from '../types/trackStyle';
+
+/**
+ * The "Default" style matches the current editor's hardcoded colors exactly,
+ * so switching to Style mode with this preset looks identical to the editor view.
+ */
+export const STYLE_DEFAULT: TrackStyle = {
+  id: 'default',
+  label: 'Default',
+  description: 'Matches the standard editor appearance',
+  background: {
+    fill: '#1a1a2e',
+    showGrid: false,
+    gridColor: '#22d3ee',
+    gridOpacity: 0.15,
+  },
+  track: {
+    bodyFill: '#39ff14',
+    bodyOpacity: 0.15,
+    edgeStroke: '#39ff14',
+    edgeWidth: 1.0,
+    showCenterLine: true,
+    centerStroke: '#39ff14',
+    centerDash: [6, 6],
+  },
+  markers: {
+    cornerStroke: '#ef4444',
+    cornerLabelColor: '#ef4444',
+    cornerStripeStroke: '#ef4444',
+    chicaneStripeStroke: '#3b82f6',
+    finishStroke: '#facc15',
+    finishLabelColor: '#facc15',
+    legendsStroke: '#c084fc',
+    raceLineStroke: '#22d3ee',
+    raceLineOpacity: 1.0,
+  },
+  lollipops: {
+    speedFill: '#dc2626',
+    speedStroke: '#ffffff',
+    speedLabelColor: '#ffffff',
+    legendsFill: '#f59e0b',
+    legendsStroke: '#f59e0b',
+    legendsLabelColor: '#ffffff',
+    countdownFill: '#f59e0b',
+    countdownStroke: '#f59e0b',
+  },
+  surfaces: {
+    tunnel:  { fill: '#292524', opacity: 0.72 },
+    flooded: { fill: '#3b82f6', opacity: 0.45 },
+    gravel:  { fill: '#d97706', opacity: 0.50 },
+  },
+};
+
+/**
+ * Blueprint style — technical drawing aesthetic on dark paper.
+ * Clean white/cyan lines on a dark navy background, with a subtle grid.
+ */
+export const STYLE_BLUEPRINT: TrackStyle = {
+  id: 'blueprint',
+  label: 'Blueprint',
+  description: 'Technical drawing on dark paper with grid',
+  background: {
+    fill: '#0a1628',
+    showGrid: true,
+    gridColor: '#1d4ed8',
+    gridOpacity: 0.35,
+  },
+  track: {
+    bodyFill: '#1e40af',
+    bodyOpacity: 0.25,
+    edgeStroke: '#93c5fd',
+    edgeWidth: 1.2,
+    showCenterLine: true,
+    centerStroke: '#60a5fa',
+    centerDash: [10, 10],
+  },
+  markers: {
+    cornerStroke: '#ffffff',
+    cornerLabelColor: '#ffffff',
+    cornerStripeStroke: '#93c5fd',
+    chicaneStripeStroke: '#7dd3fc',
+    finishStroke: '#ffffff',
+    finishLabelColor: '#ffffff',
+    legendsStroke: '#c4b5fd',
+    raceLineStroke: '#38bdf8',
+    raceLineOpacity: 0.7,
+  },
+  lollipops: {
+    speedFill: '#1e40af',
+    speedStroke: '#93c5fd',
+    speedLabelColor: '#ffffff',
+    legendsFill: '#312e81',
+    legendsStroke: '#c4b5fd',
+    legendsLabelColor: '#ffffff',
+    countdownFill: '#1e3a8a',
+    countdownStroke: '#93c5fd',
+  },
+  surfaces: {
+    tunnel:  { fill: '#0f172a', opacity: 0.8 },
+    flooded: { fill: '#1e3a8a', opacity: 0.55 },
+    gravel:  { fill: '#44403c', opacity: 0.55 },
+  },
+};
+
+export const ALL_STYLE_PRESETS: TrackStyle[] = [STYLE_DEFAULT, STYLE_BLUEPRINT];
+
+export const DEFAULT_STYLE_ID = STYLE_DEFAULT.id;
+
+export function getStyleById(id: string): TrackStyle {
+  return ALL_STYLE_PRESETS.find(s => s.id === id) ?? STYLE_DEFAULT;
+}

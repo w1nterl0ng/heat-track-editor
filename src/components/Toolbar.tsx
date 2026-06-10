@@ -40,6 +40,8 @@ export const Toolbar: React.FC = () => {
     toggleChecklist,
     checklistItems,
     backbonePhase,
+    appMode,
+    setAppMode,
   } = useEditorStore();
 
   const checklistDone = Object.values(checklistItems).filter(Boolean).length;
@@ -142,6 +144,23 @@ export const Toolbar: React.FC = () => {
 
       <div style={styles.divider} />
 
+      {/* Style mode toggle */}
+      <button
+        onClick={() => setAppMode(appMode === 'style' ? 'editor' : 'style')}
+        title="Toggle Style mode — preview and export with different visual styles"
+        style={{
+          ...styles.toolBtn,
+          ...(appMode === 'style' ? styles.styleBtn : {}),
+        }}
+      >
+        <span style={styles.toolIcon}>🎨</span>
+        <span style={styles.toolLabel}>Style</span>
+      </button>
+
+      <div style={styles.divider} />
+
+      {/* View toggles — hidden in style mode since they apply to editor canvas only */}
+      {appMode === 'editor' && <>
       <button
         onClick={toggleGrid}
         title="Toggle space grid"
@@ -182,6 +201,7 @@ export const Toolbar: React.FC = () => {
         <span style={styles.toolIcon}>⛅</span>
         <span style={styles.toolLabel}>Cond.</span>
       </button>
+      </>}
 
       <div style={styles.divider} />
 
@@ -292,6 +312,11 @@ const styles: Record<string, React.CSSProperties> = {
     background: '#1e3a5f', border: '1px solid #3b82f6', color: '#93c5fd',
   },
   toolBtnDisabled: { opacity: 0.35, cursor: 'not-allowed' },
+  styleBtn: {
+    background: '#1a1a3e',
+    border: '1px solid #7c3aed',
+    color: '#c4b5fd',
+  },
   toolBtnDanger: {
     background: '#450a0a', border: '1px solid #ef4444', color: '#fca5a5',
   },
