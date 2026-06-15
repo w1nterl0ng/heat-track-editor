@@ -80,6 +80,11 @@ export const TrackCanvas: React.FC<Props> = ({ stageRef }) => {
     updateConditionMarkerPosition,
     updateConditionMarkerRotation,
     commitConditionMarkerDrag,
+    podiumSlots,
+    addPodiumSlot,
+    updatePodiumSlotPosition,
+    commitPodiumSlotDrag,
+    updatePodiumSlotRotation,
     weatherToken,
     updateWeatherTokenPosition,
     updateWeatherTokenScale,
@@ -450,6 +455,11 @@ export const TrackCanvas: React.FC<Props> = ({ stageRef }) => {
         return;
       }
 
+      if (tool === 'podium' && backbonePhase === 'locked') {
+        addPodiumSlot(pos.x, pos.y);
+        return;
+      }
+
       if (tool === 'edit' && ghostPos && !e.evt.shiftKey) {
         insertNodeOnEdge(ghostPos.afterNodeId, ghostPos.x, ghostPos.y);
         setGhostPos(null);
@@ -460,7 +470,7 @@ export const TrackCanvas: React.FC<Props> = ({ stageRef }) => {
         clearSelection();
       }
     },
-    [loopClosed, appendNode, closeLoop, tool, ghostPos, insertNodeOnEdge, screenToWorld, clearSelection, backbonePhase, layoutClick, nodes, loopCloseSnapRadius]
+    [loopClosed, appendNode, closeLoop, tool, ghostPos, insertNodeOnEdge, screenToWorld, clearSelection, backbonePhase, layoutClick, nodes, loopCloseSnapRadius, addPodiumSlot]
   );
 
   const handleWheel = useCallback(
@@ -1285,6 +1295,60 @@ export const TrackCanvas: React.FC<Props> = ({ stageRef }) => {
                     verticalAlign="middle"
                     listening={false}
                   />
+                </Group>
+              );
+            })}
+
+            {/* Podium slots */}
+            {backbonePhase === 'locked' && podiumSlots.map(p => {
+              const size = halfWidth * 1.0;
+              const half = size / 2;
+              const fill = p.rank === 1 ? '#f59e0b' : p.rank === 2 ? '#94a3b8' : p.rank === 3 ? '#b45309' : '#64748b';
+              return (
+                <Group
+                  key={p.id}
+                  x={p.x}
+                  y={p.y}
+                  draggable={tool === 'podium'}
+                  onDragMove={e => updatePodiumSlotPosition(p.id, e.target.x(), e.target.y())}
+                  onDragEnd={e => {
+                    updatePodiumSlotPosition(p.id, e.target.x(), e.target.y());
+                    commitPodiumSlotDrag();
+                  }}
+                  onWheel={tool === 'podium' ? e => {
+                    e.evt.preventDefault();
+                    e.evt.stopPropagation();
+                    e.cancelBubble = true;
+                    const step = e.evt.shiftKey ? 1 : 5;
+                    const scrollValue = e.evt.deltaY !== 0 ? e.evt.deltaY : e.evt.deltaX;
+                    const delta = scrollValue > 0 ? step : -step;
+                    const raw = p.rotation + delta;
+                    updatePodiumSlotRotation(p.id, ((raw % 360) + 360) % 360);
+                  } : undefined}
+                >
+                  <Group rotation={p.rotation}>
+                    <Circle
+                      x={0}
+                      y={0}
+                      radius={half}
+                      fill={fill}
+                      stroke="#000000"
+                      strokeWidth={halfWidth * 0.025}
+                    />
+                    <Text
+                      x={-half}
+                      y={-half}
+                      width={size}
+                      height={size}
+                      text={String(p.rank)}
+                      fill="#ffffff"
+                      fontSize={size * 0.5}
+                      fontStyle="bold"
+                      align="center"
+                      verticalAlign="middle"
+                      listening={false}
+                    />
+                  </Group>
                 </Group>
               );
             })}

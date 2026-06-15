@@ -3,7 +3,7 @@ export interface Point {
   y: number;
 }
 
-export type ToolMode = 'layout' | 'edit' | 'surface' | 'condition' | 'background';
+export type ToolMode = 'layout' | 'edit' | 'surface' | 'condition' | 'background' | 'podium';
 
 /** Whether the spline backbone is still editable in layout mode or locked for game authoring. */
 export type BackbonePhase = 'design' | 'locked';
@@ -21,6 +21,14 @@ export interface DesignerSegment {
 }
 
 export type ConditionMarkerType = 'sector' | 'corner' | 'chicane';
+
+export interface PodiumSlot {
+  id: string;       // editor-only, stripped on export
+  rank: number;     // 1-based
+  x: number;
+  y: number;
+  rotation: number;
+}
 
 export interface ConditionMarker {
   id: string;
@@ -162,6 +170,7 @@ export interface TrackMeta {
 
 export interface EditorState {
   conditionMarkers: ConditionMarker[];
+  podiumSlots: PodiumSlot[];
   /** The weather token placed on the board. Null when not yet placed. */
   weatherToken: WeatherToken | null;
   meta: TrackMeta;

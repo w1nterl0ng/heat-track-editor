@@ -197,6 +197,7 @@ export const App: React.FC = () => {
       if (tk === 's' || tc === 'KeyS') { setTool('surface'); return; }
       if (tk === 'd' || tc === 'KeyD') { setTool('condition'); return; }
       if (tk === 'b' || tc === 'KeyB') { setTool('background'); return; }
+      if (tk === 'o' || tc === 'KeyO') { setTool('podium'); return; }
       if (e.key === '+' || e.key === '=' || tc === 'Equal') { setZoom(zoom * 1.2); return; }
       if (e.key === '-' || tc === 'Minus') { setZoom(zoom / 1.2); return; }
     };

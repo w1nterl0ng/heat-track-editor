@@ -6,6 +6,7 @@ import { SegmentList } from './SegmentList';
 import { SegmentProperties } from './SegmentProperties';
 import { SurfacePanel } from './SurfacePanel';
 import { ConditionPanel } from './ConditionPanel';
+import { PodiumPanel } from './PodiumPanel';
 import { LayoutPanel } from './LayoutPanel';
 import { BackgroundPanel } from './BackgroundPanel';
 import { exportYamlString, downloadFile } from '../lib/exportYaml';
@@ -114,6 +115,10 @@ export const Sidebar: React.FC<Props> = ({ stageRef }) => {
       ) : tool === 'condition' ? (
         <div style={styles.tabContent}>
           <ConditionPanel />
+        </div>
+      ) : tool === 'podium' ? (
+        <div style={styles.tabContent}>
+          <PodiumPanel />
         </div>
       ) : tool === 'background' ? (
         <div style={styles.tabContent}>

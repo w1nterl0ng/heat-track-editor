@@ -13,6 +13,7 @@ import type {
   ConditionMarker,
   DesignerSegment,
   PressCornerLabel,
+  PodiumSlot,
 } from '../types/track';
 import { sampleSpline, extractShorterArc, pointAtArcFraction } from '../lib/spline';
 import {
@@ -221,6 +222,13 @@ interface EditorActions {
   updateConditionMarkerRotation(id: string, rotation: number): void;
   commitConditionMarkerDrag(): void;
 
+  // Podium slots
+  addPodiumSlot(x: number, y: number): void;
+  updatePodiumSlotPosition(id: string, x: number, y: number): void;
+  commitPodiumSlotDrag(): void;
+  updatePodiumSlotRotation(id: string, rotation: number): void;
+  removePodiumSlot(id: string): void;
+
   // Weather token
   placeWeatherToken(): void;
   removeWeatherToken(): void;
@@ -327,6 +335,7 @@ const defaultState: EditorState = {
   selectedNodeIds: [],
   selectedSegmentId: null,
   conditionMarkers: [],
+  podiumSlots: [],
   weatherToken: null,
   tool: 'layout',
   backbonePhase: 'design',
@@ -366,6 +375,7 @@ function snapState(s: EditorState): StateSnapshot {
     selectedNodeIds: [...s.selectedNodeIds],
     selectedSegmentId: s.selectedSegmentId,
     conditionMarkers: s.conditionMarkers.map(m => ({ ...m })),
+    podiumSlots: s.podiumSlots.map(p => ({ ...p })),
     weatherToken: s.weatherToken ? { ...s.weatherToken } : null,
     tool: s.tool,
     showGrid: s.showGrid,
@@ -743,6 +753,45 @@ export const useEditorStore = create<EditorStore>()(
 
     commitConditionMarkerDrag() {
       get().snapshot();
+    },
+
+    addPodiumSlot(x, y) {
+      set(s => {
+        const slot: PodiumSlot = {
+          id: uid(),
+          rank: s.podiumSlots.length + 1,
+          x,
+          y,
+          rotation: 0,
+        };
+        return { podiumSlots: [...s.podiumSlots, slot] };
+      });
+    },
+
+    updatePodiumSlotPosition(id, x, y) {
+      set(s => ({
+        podiumSlots: s.podiumSlots.map(p => p.id === id ? { ...p, x, y } : p),
+      }));
+    },
+
+    commitPodiumSlotDrag() {
+      get().snapshot();
+    },
+
+    updatePodiumSlotRotation(id, rotation) {
+      set(s => ({
+        podiumSlots: s.podiumSlots.map(p => p.id === id ? { ...p, rotation } : p),
+      }));
+      get().snapshot();
+    },
+
+    removePodiumSlot(id) {
+      get().snapshot();
+      set(s => {
+        const remaining = s.podiumSlots.filter(p => p.id !== id);
+        const reranked = remaining.map((p, i) => ({ ...p, rank: i + 1 }));
+        return { podiumSlots: reranked };
+      });
     },
 
     placeWeatherToken() {

@@ -9,6 +9,7 @@ const TOOLS = [
   { mode: 'surface' as const,    label: 'Surface',   icon: '⬛', title: 'Paint space surfaces (S)',    shortcut: 'S', designOnly: false },
   { mode: 'condition' as const,  label: 'Condition', icon: '◼', title: 'Place condition markers (D)',  shortcut: 'D', designOnly: false },
   { mode: 'background' as const, label: 'BG Layer',  icon: '▣', title: 'Edit background image (B)',   shortcut: 'B', designOnly: false },
+  { mode: 'podium' as const,     label: 'Podium',    icon: '🏆', title: 'Place podium slots (O)',        shortcut: 'O', designOnly: false },
 ];
 
 export const Toolbar: React.FC = () => {

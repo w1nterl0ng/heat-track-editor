@@ -4,7 +4,7 @@ import { computeSegments } from '../store/editorStore';
 import { buildPressCornersMap } from './pressCorners';
 
 export function buildYamlObject(state: EditorState): Record<string, unknown> {
-  const { meta, nodes, segmentData, conditionMarkers, tileColumns, tileRows } = state;
+  const { meta, nodes, segmentData, conditionMarkers, podiumSlots, tileColumns, tileRows } = state;
 
   const n = nodes.length;
   const computed = computeSegments(nodes);
@@ -68,6 +68,13 @@ export function buildYamlObject(state: EditorState): Record<string, unknown> {
     rotation: Math.round(m.rotation * 10) / 10,
   }));
 
+  const yamlPodium = podiumSlots.map(p => ({
+    rank:     p.rank,
+    x:        Math.round(p.x        * 100) / 100,
+    y:        Math.round(p.y        * 100) / 100,
+    rotation: Math.round(p.rotation * 10)  / 10,
+  }));
+
   const pressCorners = buildPressCornersMap(segmentData, computed);
 
   return {
@@ -87,6 +94,7 @@ export function buildYamlObject(state: EditorState): Record<string, unknown> {
     segments: yamlSegments,
     ...(Object.keys(pressCorners).length > 0 ? { pressCorners } : {}),
     ...(yamlMarkers.length > 0 ? { conditionMarkers: yamlMarkers } : {}),
+    ...(yamlPodium.length > 0 ? { podiumSlots: yamlPodium } : {}),
   };
 }
 
