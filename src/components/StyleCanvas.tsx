@@ -16,6 +16,7 @@ import {
   buildSurfaceOverlays,
   buildLegendsMarkers,
   buildCountdownMarkers,
+  buildSectorCountdownNumbers,
   buildPhantomOverlays,
 } from '../lib/trackGeometry';
 import { getStyleById } from '../lib/stylePresets';
@@ -144,6 +145,13 @@ export const StyleCanvas: React.FC<Props> = ({ stageRef }) => {
   const countdownMarkerVisuals = useMemo(
     () => (samples.length >= 4
       ? buildCountdownMarkers(samples, computed, segmentData, SAMPLES_PER_EDGE, halfWidth, nodes)
+      : []),
+    [samples, computed, segmentData, halfWidth, nodes],
+  );
+
+  const sectorCountdownNumbers = useMemo(
+    () => (samples.length >= 4
+      ? buildSectorCountdownNumbers(samples, computed, segmentData, SAMPLES_PER_EDGE, halfWidth, nodes)
       : []),
     [samples, computed, segmentData, halfWidth, nodes],
   );
@@ -424,6 +432,33 @@ export const StyleCanvas: React.FC<Props> = ({ stageRef }) => {
               />
             ))
           )}
+
+          {/* Space countdown numbers — placed at space center, respecting countdownSide */}
+          {sectorCountdownNumbers.map((n, i) => {
+            // Inner side needs a 180° flip relative to outer so both face the track
+            let rotDeg = Math.atan2(n.tangent.y, n.tangent.x) * (180 / Math.PI);
+            if (n.dir === -1) rotDeg += 180;
+            if (rotDeg > 90) rotDeg -= 180;
+            else if (rotDeg < -90) rotDeg += 180;
+            const fontSize = halfWidth * 0.48;
+            return (
+              <Group key={`sn-${i}`} x={n.point.x} y={n.point.y} rotation={rotDeg}>
+                <Text
+                  x={-fontSize * 1.2}
+                  y={-fontSize * 0.6}
+                  width={fontSize * 2.4}
+                  height={fontSize * 1.2}
+                  text={n.label}
+                  fill={style.track.edgeStroke}
+                  fontSize={fontSize}
+                  fontStyle="bold"
+                  align="center"
+                  verticalAlign="middle"
+                  listening={false}
+                />
+              </Group>
+            );
+          })}
 
           {/* Track edges — inner and outer lines */}
           {trackLines && (
@@ -747,38 +782,82 @@ export const StyleCanvas: React.FC<Props> = ({ stageRef }) => {
 
           {/* Countdown / condition markers */}
           {countdownMarkerVisuals.map((m, i) => {
-            // Fallback: diamond shape
-            const S    = halfWidth * 0.35;
-            const half = S / 2;
+            // S = half-side of the rotated square (diamond extends S*√2 from center)
+            const S   = halfWidth * 0.228;            // 60% of original 0.38
+            const bw  = S * 0.18;                   // black border extra width
+            const rv  = bw * 0.75;                  // rivet radius
+            const cr  = S * 0.16;                   // corner radius on the inner rect
+            const crB = (S + bw) * 0.16;            // corner radius on the border rect
+            const crW = crB;                         // white matches black size
+
+            // Each chevron layer = a black backing + white face slightly in front
+            const chevStep   = S * 0.7;          // distance between each stacked layer
+            const whiteInset = chevStep * 0.65;     // white is 1/3 of chevStep in front of its black
+            const cox = 0;
+
+            // +90° so flat edge faces the track; text counter-rotated to stay readable
+            const trackAngleDeg = Math.atan2(m.tangent.y, m.tangent.x) * (180 / Math.PI);
+            const outerRot = trackAngleDeg + 45;
+
             return (
-              <Group key={`cd-${i}`} x={m.point.x} y={m.point.y}>
+              <Group key={`cd-${i}`} x={m.point.x} y={m.point.y} rotation={outerRot}>
+
+                {/* ── Chevrons: one set per aggression level, rendered back-to-front ── */}
+                {m.aggression > 0 && Array.from(
+                  { length: m.aggression },
+                  (_, i) => m.aggression - i,   // renders furthest layer first
+                ).map(ci => (
+                  <React.Fragment key={`chev-${ci}`}>
+                    {/* Black diamond — backing for this layer */}
+                    <Group x={cox} y={-chevStep * ci} rotation={45}>
+                      <Rect
+                        x={-(S + bw)} y={-(S + bw)}
+                        width={(S + bw) * 2} height={(S + bw) * 2}
+                        fill="#000000" cornerRadius={crB}
+                      />
+                    </Group>
+                    {/* White diamond — same size as black, just in front of its black */}
+                    <Group x={cox} y={-chevStep * ci + whiteInset} rotation={45}>
+                      <Rect
+                        x={-(S + bw)} y={-(S + bw)}
+                        width={(S + bw) * 2} height={(S + bw) * 2}
+                        fill="#ffffff" cornerRadius={crW}
+                      />
+                    </Group>
+                  </React.Fragment>
+                ))}
+
+                {/* ── Main diamond ── */}
                 <Group rotation={45}>
+                  {/* Black border */}
                   <Rect
-                    x={-(half + S * 0.1)}
-                    y={-(half + S * 0.1)}
-                    width={(half + S * 0.1) * 2}
-                    height={(half + S * 0.1) * 2}
-                    fill={style.lollipops.countdownStroke}
+                    x={-(S + bw)} y={-(S + bw)}
+                    width={(S + bw) * 2} height={(S + bw) * 2}
+                    fill="#000000" cornerRadius={crB}
                   />
+                  {/* Orange fill */}
                   <Rect
-                    x={-half}
-                    y={-half}
-                    width={S}
-                    height={S}
-                    fill={style.lollipops.countdownFill}
+                    x={-S} y={-S}
+                    width={S * 2} height={S * 2}
+                    fill={style.lollipops.countdownFill} cornerRadius={cr}
                   />
                 </Group>
+
+                {/* Rivets — inset inside the orange fill, clear of the border */}
+                <Circle x={0} y={-(S * Math.SQRT2 * 0.72)} radius={rv} fill="#000000" />
+                <Circle x={0} y={ (S * Math.SQRT2 * 0.72)} radius={rv} fill="#000000" />
+
+                {/* Number — rotates with the marker */}
                 <Text
-                  x={-half}
-                  y={-half}
-                  width={S}
-                  height={S}
+                  x={-S} y={-S}
+                  width={S * 2} height={S * 2}
                   text={m.label}
-                  fill={style.lollipops.speedLabelColor}
-                  fontSize={S * 0.55}
+                  fill="#000000"
+                  fontSize={S * 1.55}
                   fontStyle="bold"
                   align="center"
                   verticalAlign="middle"
+                  listening={false}
                 />
               </Group>
             );

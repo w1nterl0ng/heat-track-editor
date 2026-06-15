@@ -654,6 +654,8 @@ export interface CountdownMarkerVisual {
   aggression: number;
   point: Point;
   normal: Point;
+  /** Unit tangent (forward direction along track) — used for chevron offset. */
+  tangent: Point;
 }
 
 /**
@@ -715,7 +717,8 @@ export function buildCountdownMarkers(
           x: s.point.x + s.normal.x * edgeDist * dir,
           y: s.point.y + s.normal.y * edgeDist * dir,
         },
-        normal: s.normal,
+        normal: { x: s.normal.x, y: s.normal.y },
+        tangent: { x: s.tangent.x, y: s.tangent.y },
       });
     }
   }
@@ -725,6 +728,10 @@ export function buildCountdownMarkers(
 export interface SectorCountdownNumber {
   label: string;
   point: Point;
+  /** Unit tangent (forward direction along track) — used for text rotation. */
+  tangent: Point;
+  /** +1 for outer side, -1 for inner side — used to orient text toward the track. */
+  dir: number;
 }
 
 /**
@@ -765,6 +772,8 @@ export function buildSectorCountdownNumbers(
           x: s.point.x + s.normal.x * edgeDist * dir,
           y: s.point.y + s.normal.y * edgeDist * dir,
         },
+        tangent: { x: s.tangent.x, y: s.tangent.y },
+        dir,
       });
     }
   }
