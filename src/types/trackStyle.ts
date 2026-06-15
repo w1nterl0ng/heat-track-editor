@@ -37,11 +37,30 @@ export interface TrackStyleLollipops {
   speedFill: string;
   speedStroke: string;
   speedLabelColor: string;
+  /** 'circle' = plain filled circle; 'gauge' = speedometer arc with tick marks */
+  speedMarkerShape: 'circle' | 'gauge';
+  /**
+   * URL of a PNG badge to render as the speed marker background.
+   * When set, the PNG is used instead of the Konva-drawn shape.
+   * The number is overlaid on top. Should be a square 1:1 image.
+   */
+  speedMarkerImageSrc: string | null;
   legendsFill: string;
   legendsStroke: string;
   legendsLabelColor: string;
+  /**
+   * URL of a PNG badge to render as the legends marker.
+   * When set, the PNG is rendered directly with no text overlay.
+   */
+  legendsMarkerImageSrc: string | null;
   countdownFill: string;
   countdownStroke: string;
+  /**
+   * URL of a PNG asset to render as the condition/countdown marker.
+   * When set, the PNG is rendered at each countdown position, rotated
+   * to align with the track edge using the local normal vector.
+   */
+  conditionMarkerImageSrc: string | null;
 }
 
 export interface TrackStyleSurfaces {

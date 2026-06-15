@@ -1,4 +1,7 @@
 import type { TrackStyle } from '../types/trackStyle';
+import speedLimitSignUrl from '../assets/speed_limit_sign.png';
+import legendsMarkerUrl from '../assets/legends_marker.png';
+import conditionMarkerUrl from '../assets/condition_marker.png';
 
 /**
  * The "Default" style matches the current editor's hardcoded colors exactly,
@@ -38,11 +41,15 @@ export const STYLE_DEFAULT: TrackStyle = {
     speedFill: '#dc2626',
     speedStroke: '#ffffff',
     speedLabelColor: '#ffffff',
+    speedMarkerShape: 'circle',
+    speedMarkerImageSrc: null,
     legendsFill: '#f59e0b',
     legendsStroke: '#f59e0b',
     legendsLabelColor: '#ffffff',
+    legendsMarkerImageSrc: null,
     countdownFill: '#f59e0b',
     countdownStroke: '#f59e0b',
+    conditionMarkerImageSrc: null,
   },
   surfaces: {
     tunnel:  { fill: '#292524', opacity: 0.72 },
@@ -88,12 +95,16 @@ export const STYLE_BLUEPRINT: TrackStyle = {
   lollipops: {
     speedFill: '#1e40af',
     speedStroke: '#93c5fd',
-    speedLabelColor: '#ffffff',
+    speedLabelColor: '#1a1a2e',
+    speedMarkerShape: 'gauge',
+    speedMarkerImageSrc: speedLimitSignUrl,
     legendsFill: '#312e81',
     legendsStroke: '#c4b5fd',
     legendsLabelColor: '#ffffff',
+    legendsMarkerImageSrc: legendsMarkerUrl,
     countdownFill: '#1e3a8a',
     countdownStroke: '#93c5fd',
+    conditionMarkerImageSrc: conditionMarkerUrl,
   },
   surfaces: {
     tunnel:  { fill: '#0f172a', opacity: 0.8 },
@@ -102,7 +113,62 @@ export const STYLE_BLUEPRINT: TrackStyle = {
   },
 };
 
-export const ALL_STYLE_PRESETS: TrackStyle[] = [STYLE_DEFAULT, STYLE_BLUEPRINT];
+/**
+ * Print style — black on white, optimized for printing physical boards.
+ * High-contrast monochrome with the gauge marker shape.
+ */
+export const STYLE_PRINT: TrackStyle = {
+  id: 'print',
+  label: 'Print',
+  description: 'Black on white — optimized for physical printing',
+  background: {
+    fill: '#ffffff',
+    showGrid: false,
+    gridColor: '#cccccc',
+    gridOpacity: 0.5,
+  },
+  track: {
+    bodyFill: '#000000',
+    bodyOpacity: 0.06,
+    edgeStroke: '#000000',
+    edgeWidth: 1.0,
+    showCenterLine: true,
+    centerStroke: '#000000',
+    centerDash: [8, 8],
+  },
+  markers: {
+    cornerStroke: '#000000',
+    cornerLabelColor: '#000000',
+    cornerStripeStroke: '#000000',
+    chicaneStripeStroke: '#000000',
+    finishStroke: '#000000',
+    finishLabelColor: '#000000',
+    legendsStroke: '#444444',
+    raceLineStroke: '#888888',
+    raceLineOpacity: 0.6,
+  },
+  lollipops: {
+    speedFill: '#ffffff',
+    speedStroke: '#000000',
+    speedLabelColor: '#000000',
+    speedMarkerShape: 'gauge',
+    speedMarkerImageSrc: speedLimitSignUrl,
+    legendsFill: '#ffffff',
+    legendsStroke: '#000000',
+    legendsLabelColor: '#000000',
+    legendsMarkerImageSrc: legendsMarkerUrl,
+    countdownFill: '#ffffff',
+    countdownStroke: '#000000',
+    conditionMarkerImageSrc: conditionMarkerUrl,
+  },
+  surfaces: {
+    tunnel:  { fill: '#cccccc', opacity: 0.60 },
+    flooded: { fill: '#aaaaaa', opacity: 0.40 },
+    gravel:  { fill: '#888888', opacity: 0.35 },
+  },
+};
+
+export const ALL_STYLE_PRESETS: TrackStyle[] = [STYLE_DEFAULT, STYLE_BLUEPRINT, STYLE_PRINT];
 
 export const DEFAULT_STYLE_ID = STYLE_DEFAULT.id;
 

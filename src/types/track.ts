@@ -218,6 +218,8 @@ export interface EditorState {
   checklistItems: Record<string, boolean>;
   /** ID of the active TrackStyle preset. Persisted in .hte. */
   activeStyleId: string;
+  /** User-created custom style. Persisted in .hte. */
+  customStyle: import('./trackStyle').TrackStyle | null;
 
   /** Layout designer: backbone editing vs locked for full editor. */
   backbonePhase: BackbonePhase;

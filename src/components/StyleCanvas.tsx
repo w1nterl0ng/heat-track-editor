@@ -1,5 +1,5 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Stage, Layer, Line, Circle, Rect, Text, Image as KonvaImage, Group } from 'react-konva';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Stage, Layer, Line, Circle, Arc, Rect, Text, Image as KonvaImage, Group } from 'react-konva';
 import Konva from 'konva';
 import { useEditorStore, computeSegments } from '../store/editorStore';
 import { sampleSpline } from '../lib/spline';
@@ -34,6 +34,7 @@ export const StyleCanvas: React.FC<Props> = ({ stageRef }) => {
     loopClosed,
     trackWidthPct,
     segmentData,
+    conditionMarkers,
     backgroundImage,
     backgroundOpacity,
     backgroundSize,
@@ -51,14 +52,19 @@ export const StyleCanvas: React.FC<Props> = ({ stageRef }) => {
     setZoom,
     setPan,
     activeStyleId,
+    customStyle,
   } = useEditorStore();
 
-  const style: TrackStyle = getStyleById(activeStyleId);
+  const style: TrackStyle =
+    activeStyleId === 'custom' && customStyle ? customStyle : getStyleById(activeStyleId);
 
   const trackWidthPx = (trackWidthPct / 100) * TILE_SIZE;
   const halfWidth = trackWidthPx / 2;
 
   const [bgImage, setBgImage] = useState<HTMLImageElement | null>(null);
+  const [speedMarkerImg, setSpeedMarkerImg] = useState<HTMLImageElement | null>(null);
+  const [legendsMarkerImg, setLegendsMarkerImg] = useState<HTMLImageElement | null>(null);
+  const [conditionMarkerImg, setConditionMarkerImg] = useState<HTMLImageElement | null>(null);
 
   const isPanning = useRef(false);
   const panStart = useRef<{ mx: number; my: number; px: number; py: number } | null>(null);
@@ -69,6 +75,30 @@ export const StyleCanvas: React.FC<Props> = ({ stageRef }) => {
     img.src = backgroundImage;
     img.onload = () => setBgImage(img);
   }, [backgroundImage]);
+
+  useEffect(() => {
+    const src = style.lollipops.speedMarkerImageSrc;
+    if (!src) { setSpeedMarkerImg(null); return; }
+    const img = new window.Image();
+    img.src = src;
+    img.onload = () => setSpeedMarkerImg(img);
+  }, [style.lollipops.speedMarkerImageSrc]);
+
+  useEffect(() => {
+    const src = style.lollipops.legendsMarkerImageSrc;
+    if (!src) { setLegendsMarkerImg(null); return; }
+    const img = new window.Image();
+    img.src = src;
+    img.onload = () => setLegendsMarkerImg(img);
+  }, [style.lollipops.legendsMarkerImageSrc]);
+
+  useEffect(() => {
+    const src = style.lollipops.conditionMarkerImageSrc;
+    if (!src) { setConditionMarkerImg(null); return; }
+    const img = new window.Image();
+    img.src = src;
+    img.onload = () => setConditionMarkerImg(img);
+  }, [style.lollipops.conditionMarkerImageSrc]);
 
   // ── Geometry (mirrors TrackCanvas useMemo deps) ───────────────────────────
 
@@ -167,37 +197,48 @@ export const StyleCanvas: React.FC<Props> = ({ stageRef }) => {
 
   // ── Pan / Zoom (shared with editor viewport) ──────────────────────────────
 
-  const handleWheel = (e: Konva.KonvaEventObject<WheelEvent>) => {
-    e.evt.preventDefault();
-    const stage = stageRef.current;
-    if (!stage) return;
-    const pointer = stage.getPointerPosition();
-    if (!pointer) return;
-    const factor = e.evt.deltaY < 0 ? 1.1 : 1 / 1.1;
-    const newZoom = Math.min(Math.max(zoom * factor, 0.05), 20);
-    const mousePointTo = { x: (pointer.x - panX) / zoom, y: (pointer.y - panY) / zoom };
-    setZoom(newZoom);
-    setPan(pointer.x - mousePointTo.x * newZoom, pointer.y - mousePointTo.y * newZoom);
-  };
+  const handleWheel = useCallback(
+    (e: Konva.KonvaEventObject<WheelEvent>) => {
+      e.evt.preventDefault();
+      const stage = e.target.getStage();
+      if (!stage) return;
+      const pointer = stage.getPointerPosition();
+      if (!pointer) return;
+      const factor = e.evt.deltaY < 0 ? 1.1 : 0.9;
+      const newZoom = Math.min(Math.max(zoom * factor, 0.05), 20);
+      const worldX = (pointer.x - panX) / zoom;
+      const worldY = (pointer.y - panY) / zoom;
+      setZoom(newZoom);
+      setPan(pointer.x - worldX * newZoom, pointer.y - worldY * newZoom);
+    },
+    [zoom, panX, panY, setZoom, setPan],
+  );
 
-  const handleMouseDown = (e: Konva.KonvaEventObject<MouseEvent>) => {
-    if (e.evt.button !== 1 && !(e.evt.button === 0 && e.evt.altKey)) return;
-    e.evt.preventDefault();
-    isPanning.current = true;
-    panStart.current = { mx: e.evt.clientX, my: e.evt.clientY, px: panX, py: panY };
-  };
+  const handleMouseDown = useCallback(
+    (e: Konva.KonvaEventObject<MouseEvent>) => {
+      // Allow left-click (plain drag) or middle-click to pan
+      if (e.evt.button !== 0 && e.evt.button !== 1) return;
+      e.evt.preventDefault();
+      isPanning.current = true;
+      panStart.current = { mx: e.evt.clientX, my: e.evt.clientY, px: panX, py: panY };
+    },
+    [panX, panY],
+  );
 
-  const handleMouseMove = (e: Konva.KonvaEventObject<MouseEvent>) => {
-    if (!isPanning.current || !panStart.current) return;
-    const dx = e.evt.clientX - panStart.current.mx;
-    const dy = e.evt.clientY - panStart.current.my;
-    setPan(panStart.current.px + dx, panStart.current.py + dy);
-  };
+  const handleMouseMove = useCallback(
+    (e: Konva.KonvaEventObject<MouseEvent>) => {
+      if (!isPanning.current || !panStart.current) return;
+      const dx = e.evt.clientX - panStart.current.mx;
+      const dy = e.evt.clientY - panStart.current.my;
+      setPan(panStart.current.px + dx, panStart.current.py + dy);
+    },
+    [setPan],
+  );
 
-  const handleMouseUp = () => {
+  const handleMouseUp = useCallback(() => {
     isPanning.current = false;
     panStart.current = null;
-  };
+  }, []);
 
   // ── Surface color helper ──────────────────────────────────────────────────
 
@@ -474,71 +515,239 @@ export const StyleCanvas: React.FC<Props> = ({ stageRef }) => {
           ))}
 
           {/* Speed lollipops */}
-          {speedMarkers.map((m, i) => (
-            <Group key={`spd-${i}`}>
-              <Line
-                points={[m.stickStart.x, m.stickStart.y, m.circleCenter.x, m.circleCenter.y]}
-                stroke={style.lollipops.speedStroke}
-                strokeWidth={halfWidth * 0.04}
-                lineCap="round"
-              />
-              <Circle
-                x={m.circleCenter.x}
-                y={m.circleCenter.y}
-                radius={m.circleRadius}
-                fill={style.lollipops.speedFill}
-                stroke={style.lollipops.speedStroke}
-                strokeWidth={halfWidth * 0.04}
-              />
-              <Text
-                x={m.circleCenter.x - m.circleRadius}
-                y={m.circleCenter.y - m.circleRadius}
-                width={m.circleRadius * 2}
-                height={m.circleRadius * 2}
-                text={String(m.speedLimit)}
-                fill={style.lollipops.speedLabelColor}
-                fontSize={m.circleRadius * 1.1}
-                fontStyle="bold"
-                align="center"
-                verticalAlign="middle"
-              />
-            </Group>
-          ))}
+          {speedMarkers.map((m, i) => {
+            const lo = style.lollipops;
+            const strokeW = m.circleRadius * 0.07;
+            const diameter = m.circleRadius * 2;
+
+            // PNG badge: overlay the number on top of the image asset
+            if (speedMarkerImg) {
+              // PNG opening is at the bottom (90° in screen coords).
+              // Rotate so the opening faces back toward the track edge.
+              const openingAngleDeg = Math.atan2(
+                m.stickStart.y - m.circleCenter.y,
+                m.stickStart.x - m.circleCenter.x,
+              ) * (180 / Math.PI);
+              const badgeRotation = openingAngleDeg - 90;
+
+              return (
+                <Group key={`spd-${i}`}>
+                  <Line
+                    points={[m.stickStart.x, m.stickStart.y, m.circleCenter.x, m.circleCenter.y]}
+                    stroke={lo.speedStroke}
+                    strokeWidth={halfWidth * 0.04}
+                    lineCap="round"
+                  />
+                  {/* Rotated group: opening faces the stick */}
+                  <Group x={m.circleCenter.x} y={m.circleCenter.y} rotation={badgeRotation}>
+                    <KonvaImage
+                      image={speedMarkerImg}
+                      x={-m.circleRadius}
+                      y={-m.circleRadius}
+                      width={diameter}
+                      height={diameter}
+                    />
+                    <Text
+                      x={-m.circleRadius}
+                      y={-m.circleRadius}
+                      width={diameter}
+                      height={diameter}
+                      text={String(m.speedLimit)}
+                      fill={lo.speedLabelColor}
+                      fontSize={m.circleRadius * 0.95}
+                      fontStyle="bold"
+                      align="center"
+                      verticalAlign="middle"
+                    />
+                  </Group>
+                </Group>
+              );
+            }
+
+            // Gauge shape: arc ring with notch tick marks
+            if (lo.speedMarkerShape === 'gauge') {
+              // Opening direction: from circleCenter back toward the track edge
+              const openingAngleDeg = Math.atan2(
+                m.stickStart.y - m.circleCenter.y,
+                m.stickStart.x - m.circleCenter.x,
+              ) * (180 / Math.PI);
+              // Small opening (~35°) — arc sweeps the remaining 325°
+              const openingDeg = 35;
+              const arcSweep = 360 - openingDeg;
+              // Arc starts at half the opening past the gap center
+              const arcStartDeg = openingAngleDeg + openingDeg / 2;
+              // Thin ring: band is ~14% of radius
+              const outerR = m.circleRadius * 0.81;
+              const innerR = m.circleRadius * 0.67;
+              // 9 evenly-spaced tick notches along the arc
+              const TICK_COUNT = 9;
+              const tickAngles: number[] = [];
+              for (let t = 0; t <= TICK_COUNT; t++) {
+                tickAngles.push(arcStartDeg + (arcSweep / TICK_COUNT) * t);
+              }
+              // Ticks extend slightly into and out of the ring
+              const tickOuterR = outerR + m.circleRadius * 0.04;
+              const tickInnerR = innerR + m.circleRadius * 0.04; // only cut from outside inward ~40% of band
+
+              return (
+                <Group key={`spd-${i}`}>
+                  {/* Stick */}
+                  <Line
+                    points={[m.stickStart.x, m.stickStart.y, m.circleCenter.x, m.circleCenter.y]}
+                    stroke={lo.speedStroke}
+                    strokeWidth={halfWidth * 0.04}
+                    lineCap="round"
+                  />
+                  <Group x={m.circleCenter.x} y={m.circleCenter.y}>
+                    {/* Badge background circle */}
+                    <Circle
+                      radius={m.circleRadius}
+                      fill={lo.speedFill}
+                      stroke={lo.speedStroke}
+                      strokeWidth={strokeW * 1.8}
+                    />
+                    {/* Gauge arc ring — thin filled band, 325° sweep */}
+                    <Arc
+                      innerRadius={innerR}
+                      outerRadius={outerR}
+                      angle={arcSweep}
+                      rotation={arcStartDeg}
+                      fill={lo.speedStroke}
+                      stroke="transparent"
+                      strokeWidth={0}
+                    />
+                    {/* Tick notches — cut from outer edge inward, in badge fill color */}
+                    {tickAngles.map((angleDeg, ti) => (
+                      <Group key={ti} rotation={angleDeg}>
+                        <Line
+                          points={[tickInnerR, 0, tickOuterR, 0]}
+                          stroke={lo.speedFill}
+                          strokeWidth={strokeW * 0.9}
+                          lineCap="butt"
+                        />
+                      </Group>
+                    ))}
+                    {/* Speed number */}
+                    <Text
+                      x={-m.circleRadius}
+                      y={-m.circleRadius}
+                      width={m.circleRadius * 2}
+                      height={m.circleRadius * 2}
+                      text={String(m.speedLimit)}
+                      fill={lo.speedLabelColor}
+                      fontSize={m.circleRadius * 1.0}
+                      fontStyle="bold"
+                      align="center"
+                      verticalAlign="middle"
+                    />
+                  </Group>
+                </Group>
+              );
+            }
+
+            // Default: plain filled circle
+            return (
+              <Group key={`spd-${i}`}>
+                <Line
+                  points={[m.stickStart.x, m.stickStart.y, m.circleCenter.x, m.circleCenter.y]}
+                  stroke={lo.speedStroke}
+                  strokeWidth={halfWidth * 0.04}
+                  lineCap="round"
+                />
+                <Circle
+                  x={m.circleCenter.x}
+                  y={m.circleCenter.y}
+                  radius={m.circleRadius}
+                  fill={lo.speedFill}
+                  stroke={lo.speedStroke}
+                  strokeWidth={strokeW * 1.6}
+                />
+                <Text
+                  x={m.circleCenter.x - m.circleRadius}
+                  y={m.circleCenter.y - m.circleRadius}
+                  width={m.circleRadius * 2}
+                  height={m.circleRadius * 2}
+                  text={String(m.speedLimit)}
+                  fill={lo.speedLabelColor}
+                  fontSize={m.circleRadius * 1.1}
+                  fontStyle="bold"
+                  align="center"
+                  verticalAlign="middle"
+                />
+              </Group>
+            );
+          })}
 
           {/* Legends lollipops */}
-          {legendsMarkers.map((m, i) => (
-            <Group key={`lm-${i}`}>
-              <Line
-                points={[m.stickStart.x, m.stickStart.y, m.circleCenter.x, m.circleCenter.y]}
-                stroke={style.lollipops.legendsStroke}
-                strokeWidth={halfWidth * 0.04}
-                lineCap="round"
-              />
-              <Circle
-                x={m.circleCenter.x}
-                y={m.circleCenter.y}
-                radius={m.circleRadius}
-                fill={style.lollipops.legendsFill}
-                stroke={style.lollipops.legendsStroke}
-                strokeWidth={halfWidth * 0.03}
-              />
-              <Text
-                x={m.circleCenter.x - m.circleRadius}
-                y={m.circleCenter.y - m.circleRadius}
-                width={m.circleRadius * 2}
-                height={m.circleRadius * 2}
-                text="L"
-                fill={style.lollipops.legendsLabelColor}
-                fontSize={m.circleRadius * 1.1}
-                fontStyle="bold"
-                align="center"
-                verticalAlign="middle"
-              />
-            </Group>
-          ))}
+          {legendsMarkers.map((m, i) => {
+            const lo = style.lollipops;
+            const diameter = m.circleRadius * 2;
 
-          {/* Countdown markers (diamond shape) */}
+            // PNG badge: render the image directly, no text overlay
+            if (legendsMarkerImg) {
+              const openingAngleDeg = Math.atan2(
+                m.stickStart.y - m.circleCenter.y,
+                m.stickStart.x - m.circleCenter.x,
+              ) * (180 / Math.PI);
+              const badgeRotation = openingAngleDeg - 90;
+
+              return (
+                <Group key={`lm-${i}`}>
+                  <Line
+                    points={[m.stickStart.x, m.stickStart.y, m.circleCenter.x, m.circleCenter.y]}
+                    stroke={lo.legendsStroke}
+                    strokeWidth={halfWidth * 0.04}
+                    lineCap="round"
+                  />
+                  <Group x={m.circleCenter.x} y={m.circleCenter.y} rotation={badgeRotation}>
+                    <KonvaImage
+                      image={legendsMarkerImg}
+                      x={-m.circleRadius}
+                      y={-m.circleRadius}
+                      width={diameter}
+                      height={diameter}
+                    />
+                  </Group>
+                </Group>
+              );
+            }
+
+            // Fallback: plain circle with "L" label
+            return (
+              <Group key={`lm-${i}`}>
+                <Line
+                  points={[m.stickStart.x, m.stickStart.y, m.circleCenter.x, m.circleCenter.y]}
+                  stroke={lo.legendsStroke}
+                  strokeWidth={halfWidth * 0.04}
+                  lineCap="round"
+                />
+                <Circle
+                  x={m.circleCenter.x}
+                  y={m.circleCenter.y}
+                  radius={m.circleRadius}
+                  fill={lo.legendsFill}
+                  stroke={lo.legendsStroke}
+                  strokeWidth={halfWidth * 0.03}
+                />
+                <Text
+                  x={m.circleCenter.x - m.circleRadius}
+                  y={m.circleCenter.y - m.circleRadius}
+                  width={diameter}
+                  height={diameter}
+                  text="L"
+                  fill={lo.legendsLabelColor}
+                  fontSize={m.circleRadius * 1.1}
+                  fontStyle="bold"
+                  align="center"
+                  verticalAlign="middle"
+                />
+              </Group>
+            );
+          })}
+
+          {/* Countdown / condition markers */}
           {countdownMarkerVisuals.map((m, i) => {
+            // Fallback: diamond shape
             const S    = halfWidth * 0.35;
             const half = S / 2;
             return (
@@ -571,6 +780,57 @@ export const StyleCanvas: React.FC<Props> = ({ stageRef }) => {
                   align="center"
                   verticalAlign="middle"
                 />
+              </Group>
+            );
+          })}
+
+          {/* Condition markers (S/C tiles) — PNG building or fallback colored box */}
+          {conditionMarkers.map(m => {
+            const imgSize = halfWidth * 1.90;
+            const half = imgSize / 2;
+
+            if (conditionMarkerImg) {
+              return (
+                <Group key={m.id} x={m.x} y={m.y} rotation={m.rotation}>
+                  <KonvaImage
+                    image={conditionMarkerImg}
+                    x={-half}
+                    y={-half}
+                    width={imgSize}
+                    height={imgSize}
+                  />
+                </Group>
+              );
+            }
+
+            // Fallback: colored box with label
+            const fill =
+              m.type === 'sector'  ? '#f59e0b' :
+              m.type === 'chicane' ? '#3b82f6' : '#ef4444';
+            const boxSize = halfWidth * 1.0;
+            const boxHalf = boxSize / 2;
+            return (
+              <Group key={m.id} x={m.x} y={m.y}>
+                <Group rotation={m.rotation}>
+                  <Rect
+                    x={-boxHalf} y={-boxHalf}
+                    width={boxSize} height={boxSize}
+                    fill={fill}
+                    stroke="#ffffff"
+                    strokeWidth={halfWidth * 0.025}
+                    cornerRadius={halfWidth * 0.02}
+                  />
+                  <Text
+                    x={-boxHalf} y={-boxHalf}
+                    width={boxSize} height={boxSize}
+                    text={m.label}
+                    fill="#ffffff"
+                    fontSize={boxSize * 0.5}
+                    fontStyle="bold"
+                    align="center"
+                    verticalAlign="middle"
+                  />
+                </Group>
               </Group>
             );
           })}

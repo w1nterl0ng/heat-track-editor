@@ -15,7 +15,8 @@ import type {
   PressCornerLabel,
   PodiumSlot,
 } from '../types/track';
-import { DEFAULT_STYLE_ID } from '../lib/stylePresets';
+import { DEFAULT_STYLE_ID, getStyleById } from '../lib/stylePresets';
+import type { TrackStyle } from '../types/trackStyle';
 import { sampleSpline, extractShorterArc, pointAtArcFraction } from '../lib/spline';
 import {
   DEFAULT_IDEAL_SPACE_LENGTH_PX,
@@ -309,6 +310,14 @@ interface EditorStore extends EditorState, EditorActions {
   appMode: 'editor' | 'style';
   setAppMode(mode: 'editor' | 'style'): void;
   setActiveStyleId(id: string): void;
+  /** Clones the currently active preset into the custom slot and selects it. */
+  createCustomStyle(): void;
+  /** Updates a single color/value field on the custom style. */
+  updateCustomStyleField(
+    section: 'background' | 'track' | 'markers' | 'lollipops',
+    key: string,
+    value: string | number | boolean,
+  ): void;
 }
 
 const DEFAULT_CANVAS = 1200;
@@ -361,6 +370,7 @@ const defaultState: EditorState = {
   showCars: false,
   checklistItems: {},
   activeStyleId: DEFAULT_STYLE_ID,
+  customStyle: null,
 };
 
 function snapState(s: EditorState): StateSnapshot {
@@ -391,6 +401,7 @@ function snapState(s: EditorState): StateSnapshot {
     showCars: s.showCars,
     checklistItems: { ...s.checklistItems },
     activeStyleId: s.activeStyleId,
+    customStyle: s.customStyle ? JSON.parse(JSON.stringify(s.customStyle)) : null,
     backbonePhase: s.backbonePhase,
     designerSegments: s.designerSegments.map(seg => ({ ...seg })),
     idealSpaceLengthPx: s.idealSpaceLengthPx,
@@ -928,6 +939,32 @@ export const useEditorStore = create<EditorStore>()(
     resetChecklist() { set({ checklistItems: {} }); },
     setAppMode(mode) { set({ appMode: mode }); },
     setActiveStyleId(id) { set({ activeStyleId: id }); },
+
+    createCustomStyle() {
+      const s = get();
+      const base: TrackStyle = s.activeStyleId === 'custom' && s.customStyle
+        ? s.customStyle
+        : getStyleById(s.activeStyleId);
+      const cloned: TrackStyle = JSON.parse(JSON.stringify(base));
+      cloned.id = 'custom';
+      cloned.label = 'Custom';
+      cloned.description = 'Your custom style';
+      set({ customStyle: cloned, activeStyleId: 'custom' });
+    },
+
+    updateCustomStyleField(section, key, value) {
+      const s = get();
+      if (!s.customStyle) return;
+      set({
+        customStyle: {
+          ...s.customStyle,
+          [section]: {
+            ...(s.customStyle[section] as Record<string, unknown>),
+            [key]: value,
+          },
+        },
+      });
+    },
 
     async exportPackage() {
       const s = get();
