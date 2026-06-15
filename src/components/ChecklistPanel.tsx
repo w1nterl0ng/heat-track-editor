@@ -133,6 +133,11 @@ const CHECKLIST_GROUPS: ChecklistGroup[] = [
         label: 'Weather token placed & sized',
         help: 'In the Condition tool (D), click "+ Place weather token". Drag it to the correct board location. Use the scroll wheel to scale it to match the physical board (hold Shift for fine control).',
       },
+      {
+        id: 'podium_slots',
+        label: 'Podium slots placed',
+        help: 'Switch to the Podium tool (O). Click on the board canvas to place finish positions 1st, 2nd, 3rd… (up to 12). Drag a slot to reposition it; use the scroll wheel to rotate it. The podium chart is printed on the board — align each slot number to its corresponding box.',
+      },
     ],
   },
   {

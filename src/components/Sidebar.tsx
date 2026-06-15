@@ -26,7 +26,7 @@ export const Sidebar: React.FC<Props> = ({ stageRef }) => {
   const [activeTab, setActiveTab] = useState<Tab>('track');
   const [bundleExporting, setBundleExporting] = useState(false);
   const store = useEditorStore();
-  const { meta, nodes, tool, backgroundImage, segmentData, conditionMarkers, backbonePhase, designerSegments } = store;
+  const { meta, nodes, tool, backgroundImage, segmentData, conditionMarkers, podiumSlots, backbonePhase, designerSegments } = store;
 
   const computed = computeSegments(nodes);
   const cornerCount = computed.length;
@@ -36,6 +36,7 @@ export const Sidebar: React.FC<Props> = ({ stageRef }) => {
 
   // ── Checklist derivations ──────────────────────────────────────────────────
   const hasConditionMarkers = conditionMarkers.length > 0;
+  const hasPodiumSlots = podiumSlots.length > 0;
 
   const zeroRotationCount = conditionMarkers.filter(m => m.rotation === 0).length;
   const hasZeroRotationMarkers = zeroRotationCount > 0;
@@ -272,6 +273,7 @@ export const Sidebar: React.FC<Props> = ({ stageRef }) => {
                   : `${segsWithLegendsLine} of ${cornerCount} sector${cornerCount !== 1 ? 's' : ''} have a legends line`}
               />
               <CheckItem kind="fatal" ok={hasConditionMarkers} label="Condition markers placed" />
+              <CheckItem kind="fatal" ok={hasPodiumSlots} label="Podium slots placed" />
               <CheckItem
                 kind="fatal"
                 ok={hasPressCornersAD}
