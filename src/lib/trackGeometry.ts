@@ -823,3 +823,69 @@ export function buildPhantomOverlays(
 
   return result;
 }
+
+// ── Starting grid ─────────────────────────────────────────────────────────────
+
+export interface StartingGridRow {
+  rank1: number;        // odd rank — race line side
+  rank2: number;        // even rank — opposite side
+  /** Spline point AT the crossline tick for this row. */
+  crossline: Point;
+  tangent: Point;
+  normal: Point;
+  /** +1 = +normal direction is the race line side, -1 = -normal direction. */
+  raceLineSide: 1 | -1;
+}
+
+/**
+ * Build 6 starting grid rows (= 12 positions) behind the finish line.
+ * Each row has an odd rank on the race line side and an even rank on the other.
+ */
+export function buildStartingGridRows(
+  samples: SplineSample[],
+  nodes: TrackNode[],
+  segmentData: SegmentData[],
+  samplesPerEdge: number,
+): StartingGridRow[] {
+  if (samples.length === 0 || nodes.length === 0) return [];
+
+  const finishIdx = nodes.findIndex(nd => nd.isFinishLine);
+  if (finishIdx < 0) return [];
+  const nodeCount = nodes.length;
+
+  // Find race line side from nearest corner before finish.
+  // From buildRaceLineArcs: 'R' → +normal (+1), 'L' → -normal (-1)
+  let raceLineSide: 1 | -1 = 1;
+  {
+    let ni = finishIdx;
+    for (let i = 0; i < nodeCount; i++) {
+      ni = (ni - 1 + nodeCount) % nodeCount;
+      if (nodes[ni].isCorner) {
+        const sd = segmentData.find(s => s.startNodeId === nodes[ni].id);
+        if (sd) raceLineSide = sd.raceLine === 'R' ? 1 : -1;
+        break;
+      }
+    }
+  }
+
+  // Collect 6 non-phantom node indices walking backward from the finish line.
+  const rowNodes: number[] = [];
+  let ni = finishIdx;
+  for (let safety = 0; rowNodes.length < 6 && safety < nodeCount; safety++) {
+    ni = (ni - 1 + nodeCount) % nodeCount;
+    if (!nodes[ni].isPhantom) rowNodes.push(ni);
+  }
+
+  return rowNodes.map((nodeIdx, row) => {
+    const sIdx = Math.min(nodeIdx * samplesPerEdge, samples.length - 1);
+    const s = samples[sIdx];
+    return {
+      rank1: row * 2 + 1,
+      rank2: row * 2 + 2,
+      crossline: { x: s.point.x, y: s.point.y },
+      tangent:   { x: s.tangent.x, y: s.tangent.y },
+      normal:    { x: s.normal.x,  y: s.normal.y  },
+      raceLineSide,
+    };
+  });
+}

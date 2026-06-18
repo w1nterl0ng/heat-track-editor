@@ -17,6 +17,7 @@ import {
   buildLegendsMarkers,
   buildCountdownMarkers,
   buildSectorCountdownNumbers,
+  buildStartingGridRows,
   buildPhantomOverlays,
 } from '../lib/trackGeometry';
 import { getStyleById } from '../lib/stylePresets';
@@ -154,6 +155,13 @@ export const StyleCanvas: React.FC<Props> = ({ stageRef }) => {
       ? buildSectorCountdownNumbers(samples, computed, segmentData, SAMPLES_PER_EDGE, halfWidth, nodes)
       : []),
     [samples, computed, segmentData, halfWidth, nodes],
+  );
+
+  const startingGridRows = useMemo(
+    () => (samples.length >= 4
+      ? buildStartingGridRows(samples, nodes, segmentData, SAMPLES_PER_EDGE)
+      : []),
+    [samples, nodes, segmentData],
   );
 
   const phantomOverlays = useMemo(
@@ -863,6 +871,58 @@ export const StyleCanvas: React.FC<Props> = ({ stageRef }) => {
                   listening={false}
                 />
               </Group>
+            );
+          })}
+
+          {/* Starting grid — ] bracket cradles each position number, race line side is odd */}
+          {startingGridRows.map(row => {
+            const { rank1, rank2, crossline: cp, tangent: t, normal: n, raceLineSide: rls } = row;
+            const color  = style.track.edgeStroke;
+            const sw     = (style.track.edgeWidth * 2.0) / zoom;
+            const armLen = halfWidth * 0.10; // 5% of ~2*halfWidth space length
+            const fs     = halfWidth * 0.38;
+
+            // Text rotation: parallel to track, anti-flip to keep readable
+            let rotDeg = Math.atan2(t.y, t.x) * (180 / Math.PI);
+            if (rotDeg > 90) rotDeg -= 180;
+            else if (rotDeg < -90) rotDeg += 180;
+
+            const renderPosition = (rank: number, side: 1 | -1, offsetBack: number) => {
+              // Bar center: at crossline, shifted into the space and into the lane
+              const barX = cp.x - t.x * offsetBack + n.x * halfWidth * 0.5 * side;
+              const barY = cp.y - t.y * offsetBack + n.y * halfWidth * 0.5 * side;
+
+              // Bar endpoints: 10%→90% of lane width (80% centered)
+              const b1 = { x: barX + n.x * side * halfWidth * (-0.4), y: barY + n.y * side * halfWidth * (-0.4) };
+              const b2 = { x: barX + n.x * side * halfWidth * ( 0.4), y: barY + n.y * side * halfWidth * ( 0.4) };
+
+              // Arm endpoints: -tangent from each bar end
+              const a1 = { x: b1.x - t.x * armLen, y: b1.y - t.y * armLen };
+              const a2 = { x: b2.x - t.x * armLen, y: b2.y - t.y * armLen };
+
+              // Label: ~half-space behind the crossline, in the lane center
+              const lblX = cp.x - t.x * halfWidth + n.x * halfWidth * 0.5 * side;
+              const lblY = cp.y - t.y * halfWidth + n.y * halfWidth * 0.5 * side;
+
+              return (
+                <React.Fragment key={`sg-${rank}`}>
+                  <Line points={[b1.x, b1.y, b2.x, b2.y]} stroke={color} strokeWidth={sw} lineCap="square" listening={false} />
+                  <Line points={[b1.x, b1.y, a1.x, a1.y]} stroke={color} strokeWidth={sw} lineCap="square" listening={false} />
+                  <Line points={[b2.x, b2.y, a2.x, a2.y]} stroke={color} strokeWidth={sw} lineCap="square" listening={false} />
+                  <Group x={lblX} y={lblY} rotation={rotDeg}>
+                    <Text x={-fs} y={-fs * 0.65} width={fs * 2} height={fs * 1.3}
+                      text={String(rank)} fill={color} fontSize={fs}
+                      fontStyle="bold" align="center" verticalAlign="middle" listening={false} />
+                  </Group>
+                </React.Fragment>
+              );
+            };
+
+            return (
+              <React.Fragment key={`sgr-${rank1}`}>
+                {renderPosition(rank1, rls,       halfWidth * 0.05)}
+                {renderPosition(rank2, -rls as 1|-1, halfWidth * 0.22)}
+              </React.Fragment>
             );
           })}
 
