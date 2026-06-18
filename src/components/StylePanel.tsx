@@ -5,6 +5,34 @@ import { ALL_STYLE_PRESETS, getStyleById } from '../lib/stylePresets';
 import { exportBoardImage } from '../lib/exportImage';
 import type { TrackStyle } from '../types/trackStyle';
 
+// ── Style file import/export ──────────────────────────────────────────────────
+
+function downloadStyleFile(style: TrackStyle) {
+  const { id: _id, ...rest } = style;
+  const json = JSON.stringify({ ...rest, id: 'custom' }, null, 2);
+  const blob = new Blob([json], { type: 'application/json' });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href     = url;
+  a.download = `${style.label.toLowerCase().replace(/\s+/g, '_')}.htstyle`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+function isValidStyle(obj: unknown): obj is TrackStyle {
+  if (!obj || typeof obj !== 'object') return false;
+  const s = obj as Record<string, unknown>;
+  return (
+    typeof s.background === 'object' &&
+    typeof s.track      === 'object' &&
+    typeof s.markers    === 'object' &&
+    typeof s.lollipops  === 'object' &&
+    typeof s.surfaces   === 'object'
+  );
+}
+
 interface Props {
   stageRef: React.RefObject<Konva.Stage | null>;
 }
@@ -289,9 +317,36 @@ export const StylePanel: React.FC<Props> = ({ stageRef }) => {
     meta,
   } = useEditorStore();
 
+  const styleFileRef = useRef<HTMLInputElement>(null);
+  const [importError, setImportError] = useState<string | null>(null);
+
   const handleExportImage = async () => {
     if (!stageRef.current) return;
     await exportBoardImage(stageRef.current, meta.trackId);
+  };
+
+  const handleExportStyle = () => {
+    const style = isCustom && customStyle ? customStyle : getStyleById(activeStyleId);
+    downloadStyleFile(style);
+  };
+
+  const handleImportStyle = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setImportError(null);
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = ev => {
+      try {
+        const parsed = JSON.parse(ev.target?.result as string);
+        if (!isValidStyle(parsed)) throw new Error('Not a valid .htstyle file');
+        const style: TrackStyle = { ...parsed, id: 'custom' };
+        useEditorStore.setState({ customStyle: style, activeStyleId: 'custom' });
+      } catch (err) {
+        setImportError(err instanceof Error ? err.message : 'Import failed');
+      }
+      e.target.value = '';
+    };
+    reader.readAsText(file);
   };
 
   const isCustom = activeStyleId === 'custom';
@@ -372,6 +427,24 @@ export const StylePanel: React.FC<Props> = ({ stageRef }) => {
         >
           {customStyle ? 'Reset custom from this preset' : '+ Create custom style from preset'}
         </button>
+
+        {/* Style file import / export */}
+        <div style={styles.styleFileRow}>
+          <button onClick={handleExportStyle} style={styles.styleFileBtn} title="Save style to a .htstyle file">
+            ↓ Export style
+          </button>
+          <button onClick={() => styleFileRef.current?.click()} style={styles.styleFileBtn} title="Load a .htstyle file">
+            ↑ Import style
+          </button>
+          <input
+            ref={styleFileRef}
+            type="file"
+            accept=".htstyle,application/json"
+            style={{ display: 'none' }}
+            onChange={handleImportStyle}
+          />
+        </div>
+        {importError && <div style={styles.importError}>{importError}</div>}
       </div>
 
       <div style={styles.divider} />
@@ -533,6 +606,27 @@ const styles: Record<string, React.CSSProperties> = {
     borderRadius: '50%',
     background: '#3b82f6',
     flexShrink: 0,
+  },
+  styleFileRow: {
+    display: 'flex',
+    gap: 6,
+    marginTop: 4,
+  },
+  styleFileBtn: {
+    flex: 1,
+    padding: '5px 8px',
+    background: 'transparent',
+    border: '1px solid #334155',
+    borderRadius: 6,
+    color: '#64748b',
+    fontSize: 11,
+    cursor: 'pointer',
+    textAlign: 'center' as const,
+  },
+  importError: {
+    fontSize: 10,
+    color: '#f87171',
+    marginTop: 4,
   },
   createBtn: {
     padding: '6px 10px',
