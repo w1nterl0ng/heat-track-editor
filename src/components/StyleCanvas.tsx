@@ -883,7 +883,7 @@ export const StyleCanvas: React.FC<Props> = ({ stageRef }) => {
             const fs     = halfWidth * 0.38;
 
             // Text rotation: perpendicular to track (+90° from tangent), anti-flip
-            let rotDeg = Math.atan2(t.y, t.x) * (180 / Math.PI) + 90;
+            let rotDeg = Math.atan2(t.y, t.x) * (180 / Math.PI) - 90;
             if (rotDeg > 90) rotDeg -= 180;
             else if (rotDeg < -90) rotDeg += 180;
 
