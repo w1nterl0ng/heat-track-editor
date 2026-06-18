@@ -13,12 +13,15 @@ export interface TrackStyleTrack {
   bodyOpacity: number;
   /** Color of the inner and outer edge lines. */
   edgeStroke: string;
-  /** Edge stroke width multiplier (1.0 = default). */
+  /** Edge stroke width multiplier (1.0 ≈ 2 screen px at zoom 1). */
   edgeWidth: number;
   /** Whether to render a dashed center line over the track body. */
   showCenterLine: boolean;
   centerStroke: string;
+  /** Dash pattern [dashLen, gapLen] in world-space pixels (divided by zoom at render time). */
   centerDash: [number, number];
+  /** Center line stroke width multiplier (1.0 = 1 screen px). */
+  centerLineWidth: number;
 }
 
 export interface TrackStyleMarkers {
@@ -31,6 +34,8 @@ export interface TrackStyleMarkers {
   legendsStroke: string;
   raceLineStroke: string;
   raceLineOpacity: number;
+  /** Race line stroke width as a fraction of track width (0.05 = 5% of full track width). */
+  raceLineWidth: number;
 }
 
 export interface TrackStyleLollipops {

@@ -25,6 +25,7 @@ export const STYLE_DEFAULT: TrackStyle = {
     showCenterLine: true,
     centerStroke: '#39ff14',
     centerDash: [6, 6],
+    centerLineWidth: 1.0,
   },
   markers: {
     cornerStroke: '#ef4444',
@@ -36,6 +37,7 @@ export const STYLE_DEFAULT: TrackStyle = {
     legendsStroke: '#c084fc',
     raceLineStroke: '#22d3ee',
     raceLineOpacity: 1.0,
+    raceLineWidth: 0.05,
   },
   lollipops: {
     speedFill: '#dc2626',
@@ -80,6 +82,7 @@ export const STYLE_BLUEPRINT: TrackStyle = {
     showCenterLine: true,
     centerStroke: '#60a5fa',
     centerDash: [10, 10],
+    centerLineWidth: 1.0,
   },
   markers: {
     cornerStroke: '#ffffff',
@@ -91,6 +94,7 @@ export const STYLE_BLUEPRINT: TrackStyle = {
     legendsStroke: '#c4b5fd',
     raceLineStroke: '#38bdf8',
     raceLineOpacity: 0.7,
+    raceLineWidth: 0.05,
   },
   lollipops: {
     speedFill: '#1e40af',
@@ -131,10 +135,11 @@ export const STYLE_PRINT: TrackStyle = {
     bodyFill: '#000000',
     bodyOpacity: 0.06,
     edgeStroke: '#000000',
-    edgeWidth: 1.0,
+    edgeWidth: 2.5,
     showCenterLine: true,
     centerStroke: '#000000',
-    centerDash: [8, 8],
+    centerDash: [12, 8],
+    centerLineWidth: 2.0,
   },
   markers: {
     cornerStroke: '#000000',
@@ -146,6 +151,7 @@ export const STYLE_PRINT: TrackStyle = {
     legendsStroke: '#444444',
     raceLineStroke: '#888888',
     raceLineOpacity: 0.6,
+    raceLineWidth: 0.04,
   },
   lollipops: {
     speedFill: '#ffffff',

@@ -312,11 +312,11 @@ interface EditorStore extends EditorState, EditorActions {
   setActiveStyleId(id: string): void;
   /** Clones the currently active preset into the custom slot and selects it. */
   createCustomStyle(): void;
-  /** Updates a single color/value field on the custom style. */
+  /** Updates a single color/value/tuple field on the custom style. */
   updateCustomStyleField(
     section: 'background' | 'track' | 'markers' | 'lollipops',
     key: string,
-    value: string | number | boolean,
+    value: string | number | boolean | number[],
   ): void;
 }
 

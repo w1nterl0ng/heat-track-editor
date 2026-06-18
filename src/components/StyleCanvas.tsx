@@ -382,7 +382,7 @@ export const StyleCanvas: React.FC<Props> = ({ stageRef }) => {
               key={`race-${i}`}
               points={arc.points}
               stroke={style.markers.raceLineStroke}
-              strokeWidth={trackWidthPx * 0.05}
+              strokeWidth={trackWidthPx * style.markers.raceLineWidth}
               lineCap="round"
               opacity={style.markers.raceLineOpacity}
             />
@@ -487,7 +487,7 @@ export const StyleCanvas: React.FC<Props> = ({ stageRef }) => {
             <Line
               points={trackLines.centerPoints}
               stroke={style.track.centerStroke}
-              strokeWidth={1 / zoom}
+              strokeWidth={style.track.centerLineWidth / zoom}
               lineJoin="round"
               lineCap="round"
               closed

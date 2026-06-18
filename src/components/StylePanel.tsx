@@ -111,18 +111,60 @@ const cfStyles: Record<string, React.CSSProperties> = {
   },
 };
 
+// ── Number input field ───────────────────────────────────────────────────────
+
+interface NumberFieldProps {
+  label: string;
+  value: number;
+  min?: number;
+  max?: number;
+  step?: number;
+  onChange: (v: number) => void;
+}
+
+const NumberField: React.FC<NumberFieldProps> = ({ label, value, min, max, step = 0.1, onChange }) => {
+  const [draft, setDraft] = React.useState(String(value));
+  React.useEffect(() => { setDraft(String(value)); }, [value]);
+
+  const commit = (raw: string) => {
+    const n = parseFloat(raw);
+    if (!isNaN(n)) {
+      const clamped = min !== undefined ? Math.max(min, max !== undefined ? Math.min(max, n) : n) : n;
+      onChange(clamped);
+      setDraft(String(clamped));
+    }
+  };
+
+  return (
+    <div style={cfStyles.row}>
+      <span style={cfStyles.label}>{label}</span>
+      <input
+        type="number"
+        value={draft}
+        min={min}
+        max={max}
+        step={step}
+        onChange={e => setDraft(e.target.value)}
+        onBlur={e => commit(e.target.value)}
+        onKeyDown={e => { if (e.key === 'Enter') commit((e.target as HTMLInputElement).value); }}
+        style={{ ...cfStyles.hexInput, width: 56 }}
+      />
+    </div>
+  );
+};
+
 // ── Color editor groups ───────────────────────────────────────────────────────
 
 interface ColorEditorProps {
   style: TrackStyle;
-  onField: (section: 'background' | 'track' | 'markers' | 'lollipops', key: string, value: string | boolean) => void;
+  onField: (section: 'background' | 'track' | 'markers' | 'lollipops', key: string, value: string | number | boolean | number[]) => void;
 }
 
 const ColorEditor: React.FC<ColorEditorProps> = ({ style: s, onField }) => {
-  const bg  = (k: string, v: string) => onField('background', k, v);
-  const tr  = (k: string, v: string) => onField('track', k, v);
-  const mk  = (k: string, v: string) => onField('markers', k, v);
-  const lo  = (k: string, v: string) => onField('lollipops', k, v);
+  const bg  = (k: string, v: string | number | boolean) => onField('background', k, v);
+  const tr  = (k: string, v: string | number | boolean) => onField('track', k, v);
+  const mk  = (k: string, v: string | number | boolean) => onField('markers', k, v);
+  const lo  = (k: string, v: string | number | boolean) => onField('lollipops', k, v);
 
   return (
     <div style={edStyles.editor}>
@@ -135,9 +177,13 @@ const ColorEditor: React.FC<ColorEditorProps> = ({ style: s, onField }) => {
 
       <div style={edStyles.group}>
         <div style={edStyles.groupLabel}>Track</div>
-        <ColorField label="Body fill"    value={s.track.bodyFill}    onChange={v => tr('bodyFill', v)} />
-        <ColorField label="Edge stroke"  value={s.track.edgeStroke}  onChange={v => tr('edgeStroke', v)} />
-        <ColorField label="Center line"  value={s.track.centerStroke} onChange={v => tr('centerStroke', v)} />
+        <ColorField label="Body fill"       value={s.track.bodyFill}       onChange={v => tr('bodyFill', v)} />
+        <ColorField label="Edge stroke"     value={s.track.edgeStroke}     onChange={v => tr('edgeStroke', v)} />
+        <NumberField label="Edge width"     value={s.track.edgeWidth}      min={0.5} max={8} step={0.5} onChange={v => tr('edgeWidth', v)} />
+        <ColorField label="Center line"     value={s.track.centerStroke}   onChange={v => tr('centerStroke', v)} />
+        <NumberField label="Center width"   value={s.track.centerLineWidth} min={0.5} max={6} step={0.5} onChange={v => tr('centerLineWidth', v)} />
+        <NumberField label="Dash on"        value={s.track.centerDash[0]}  min={1} max={40} step={1}   onChange={v => onField('track', 'centerDash', [v, s.track.centerDash[1]])} />
+        <NumberField label="Dash off"       value={s.track.centerDash[1]}  min={1} max={40} step={1}   onChange={v => onField('track', 'centerDash', [s.track.centerDash[0], v])} />
       </div>
 
       <div style={edStyles.group}>
@@ -149,7 +195,8 @@ const ColorEditor: React.FC<ColorEditorProps> = ({ style: s, onField }) => {
         <ColorField label="Finish stroke"        value={s.markers.finishStroke}        onChange={v => mk('finishStroke', v)} />
         <ColorField label="Finish label"         value={s.markers.finishLabelColor}    onChange={v => mk('finishLabelColor', v)} />
         <ColorField label="Legends stroke"       value={s.markers.legendsStroke}       onChange={v => mk('legendsStroke', v)} />
-        <ColorField label="Race line"            value={s.markers.raceLineStroke}      onChange={v => mk('raceLineStroke', v)} />
+        <ColorField  label="Race line"       value={s.markers.raceLineStroke}  onChange={v => mk('raceLineStroke', v)} />
+        <NumberField label="Race line width" value={s.markers.raceLineWidth}   min={0.01} max={0.2} step={0.01} onChange={v => mk('raceLineWidth', v)} />
       </div>
 
       <div style={edStyles.group}>
