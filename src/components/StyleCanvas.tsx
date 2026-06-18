@@ -866,11 +866,48 @@ export const StyleCanvas: React.FC<Props> = ({ stageRef }) => {
             );
           })}
 
-          {/* Condition markers (S/C tiles) — PNG building or fallback colored box */}
+          {/* Condition markers (S/C tiles) — chicane gets checkered border, others use PNG/fallback */}
           {conditionMarkers.map(m => {
             const imgSize = halfWidth * 1.90;
             const half = imgSize / 2;
 
+            // ── Chicane: blue/white checkered square tile ─────────────────────
+            if (m.type === 'chicane') {
+              const outerSize = imgSize;
+              const sw   = outerSize * 0.10;   // border stripe width = square height
+              const sq   = sw;                  // dash length ≈ width → square
+              const innerSize = outerSize - sw * 2;
+              const innerHalf = innerSize / 2;
+              const color = style.markers.chicaneStripeStroke;
+              return (
+                <Group key={m.id} x={m.x} y={m.y} rotation={m.rotation}>
+                  {/* White background fill */}
+                  <Rect x={-half} y={-half} width={outerSize} height={outerSize} fill="#ffffff" />
+                  {/* Checkered border — solid blue base + white dashes on top */}
+                  <Rect x={-half} y={-half} width={outerSize} height={outerSize}
+                    stroke={color} strokeWidth={sw} fill="transparent" />
+                  <Rect x={-half} y={-half} width={outerSize} height={outerSize}
+                    stroke="#ffffff" strokeWidth={sw} fill="transparent"
+                    dash={[sq, sq]} />
+                  {/* Blue inner square */}
+                  <Rect x={-innerHalf} y={-innerHalf} width={innerSize} height={innerSize}
+                    fill={color} cornerRadius={sw * 0.3} />
+                  {/* Label */}
+                  <Text
+                    x={-innerHalf} y={-innerHalf}
+                    width={innerSize} height={innerSize}
+                    text={m.label}
+                    fill="#ffffff"
+                    fontSize={innerSize * 0.38}
+                    fontStyle="bold"
+                    align="center"
+                    verticalAlign="middle"
+                  />
+                </Group>
+              );
+            }
+
+            // ── Sector / corner: PNG building or fallback colored box ─────────
             if (conditionMarkerImg) {
               return (
                 <Group key={m.id} x={m.x} y={m.y} rotation={m.rotation}>
@@ -886,9 +923,7 @@ export const StyleCanvas: React.FC<Props> = ({ stageRef }) => {
             }
 
             // Fallback: colored box with label
-            const fill =
-              m.type === 'sector'  ? '#f59e0b' :
-              m.type === 'chicane' ? '#3b82f6' : '#ef4444';
+            const fill = m.type === 'sector' ? '#f59e0b' : '#ef4444';
             const boxSize = halfWidth * 1.0;
             const boxHalf = boxSize / 2;
             return (
