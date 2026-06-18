@@ -882,10 +882,8 @@ export const StyleCanvas: React.FC<Props> = ({ stageRef }) => {
             const armLen = halfWidth * 0.10; // 5% of ~2*halfWidth space length
             const fs     = halfWidth * 0.38;
 
-            // Text rotation: perpendicular to track (+90° from tangent), anti-flip
-            let rotDeg = Math.atan2(t.y, t.x) * (180 / Math.PI) - 90;
-            if (rotDeg > 90) rotDeg -= 180;
-            else if (rotDeg < -90) rotDeg += 180;
+            // Text rotation: perpendicular to track, no anti-flip so ±90 stays distinct
+            const rotDeg = Math.atan2(t.y, t.x) * (180 / Math.PI) - 90;
 
             const renderPosition = (rank: number, side: 1 | -1, offsetBack: number) => {
               // Bar center: at crossline, shifted into the space and into the lane
