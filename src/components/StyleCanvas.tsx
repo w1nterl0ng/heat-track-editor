@@ -376,6 +376,28 @@ export const StyleCanvas: React.FC<Props> = ({ stageRef }) => {
             />
           )}
 
+          {/* Track edges — inner and outer lines (rendered before curbing so curbing sits on top) */}
+          {trackLines && (
+            <>
+              <Line
+                points={trackLines.innerPoints}
+                stroke={style.track.edgeStroke}
+                strokeWidth={edgeW}
+                lineJoin="round"
+                lineCap="round"
+                closed
+              />
+              <Line
+                points={trackLines.outerPoints}
+                stroke={style.track.edgeStroke}
+                strokeWidth={edgeW}
+                lineJoin="round"
+                lineCap="round"
+                closed
+              />
+            </>
+          )}
+
           {/* Race line arcs */}
           {raceLineArcs.map((arc, i) => (
             <Line
@@ -462,28 +484,6 @@ export const StyleCanvas: React.FC<Props> = ({ stageRef }) => {
               </Group>
             );
           })}
-
-          {/* Track edges — inner and outer lines */}
-          {trackLines && (
-            <>
-              <Line
-                points={trackLines.innerPoints}
-                stroke={style.track.edgeStroke}
-                strokeWidth={edgeW}
-                lineJoin="round"
-                lineCap="round"
-                closed
-              />
-              <Line
-                points={trackLines.outerPoints}
-                stroke={style.track.edgeStroke}
-                strokeWidth={edgeW}
-                lineJoin="round"
-                lineCap="round"
-                closed
-              />
-            </>
-          )}
 
           {/* Optional dashed center line */}
           {style.track.showCenterLine && trackLines && (
