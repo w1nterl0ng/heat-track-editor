@@ -868,12 +868,13 @@ export function buildStartingGridRows(
     }
   }
 
-  // Collect 6 non-phantom node indices walking backward from the finish line.
+  // Collect 6 non-phantom node indices starting FROM the finish line node.
+  // The finish line crossline is the forward boundary of row 1 (positions 1 & 2).
   const rowNodes: number[] = [];
   let ni = finishIdx;
   for (let safety = 0; rowNodes.length < 6 && safety < nodeCount; safety++) {
-    ni = (ni - 1 + nodeCount) % nodeCount;
     if (!nodes[ni].isPhantom) rowNodes.push(ni);
+    ni = (ni - 1 + nodeCount) % nodeCount;
   }
 
   return rowNodes.map((nodeIdx, row) => {

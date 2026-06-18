@@ -882,8 +882,8 @@ export const StyleCanvas: React.FC<Props> = ({ stageRef }) => {
             const armLen = halfWidth * 0.10; // 5% of ~2*halfWidth space length
             const fs     = halfWidth * 0.38;
 
-            // Text rotation: parallel to track, anti-flip to keep readable
-            let rotDeg = Math.atan2(t.y, t.x) * (180 / Math.PI);
+            // Text rotation: perpendicular to track (+90° from tangent), anti-flip
+            let rotDeg = Math.atan2(t.y, t.x) * (180 / Math.PI) + 90;
             if (rotDeg > 90) rotDeg -= 180;
             else if (rotDeg < -90) rotDeg += 180;
 
@@ -920,8 +920,8 @@ export const StyleCanvas: React.FC<Props> = ({ stageRef }) => {
 
             return (
               <React.Fragment key={`sgr-${rank1}`}>
-                {renderPosition(rank1, rls,       halfWidth * 0.05)}
-                {renderPosition(rank2, -rls as 1|-1, halfWidth * 0.22)}
+                {renderPosition(rank1, rls,            halfWidth * 0.18)}
+                {renderPosition(rank2, -rls as 1|-1,  halfWidth * 0.38)}
               </React.Fragment>
             );
           })}
