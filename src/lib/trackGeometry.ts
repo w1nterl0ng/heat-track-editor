@@ -823,3 +823,96 @@ export function buildPhantomOverlays(
 
   return result;
 }
+
+// ── Starting grid ─────────────────────────────────────────────────────────────
+
+export interface StartingGridBox {
+  rank: number;
+  /** Lane center in world space (with stagger applied for odd ranks). */
+  center: Point;
+  tangent: Point;
+  normal: Point;
+  /** +1 = positive-normal side (race line side), -1 = negative-normal side. */
+  side: 1 | -1;
+}
+
+/**
+ * Build 12 starting grid positions (6 rows × 2 lanes) behind the finish line.
+ * Odd ranks (1,3,5…) are on the race line side and staggered slightly forward.
+ */
+export function buildStartingGridBoxes(
+  samples: SplineSample[],
+  nodes: TrackNode[],
+  segmentData: SegmentData[],
+  samplesPerEdge: number,
+  halfWidth: number,
+): StartingGridBox[] {
+  if (samples.length === 0 || nodes.length === 0) return [];
+
+  const finishIdx = nodes.findIndex(nd => nd.isFinishLine);
+  if (finishIdx < 0) return [];
+  const nodeCount = nodes.length;
+
+  // Determine which normal direction carries the race line in the finish area.
+  // Walk backward from finish to find the nearest corner and its segmentData.
+  let raceLineSide: 1 | -1 = 1; // default: +normal side = race line side
+  {
+    let ni = finishIdx;
+    for (let i = 0; i < nodeCount; i++) {
+      ni = (ni - 1 + nodeCount) % nodeCount;
+      if (nodes[ni].isCorner) {
+        const sd = segmentData.find(s => s.startNodeId === nodes[ni].id);
+        if (sd) {
+          // 'L' = race line on the left = negative normal direction = -1
+          // 'R' = race line on the right = positive normal direction = +1
+          raceLineSide = sd.raceLine === 'L' ? -1 : 1;
+        }
+        break;
+      }
+    }
+  }
+
+  // Collect 6 non-phantom node indices walking backward from the finish line.
+  const rowNodes: number[] = [];
+  let ni = finishIdx;
+  for (let safety = 0; rowNodes.length < 6 && safety < nodeCount; safety++) {
+    ni = (ni - 1 + nodeCount) % nodeCount;
+    if (!nodes[ni].isPhantom) rowNodes.push(ni);
+  }
+
+  const stagger = halfWidth * 0.3; // ~1/10 of space length
+  const result: StartingGridBox[] = [];
+
+  for (let row = 0; row < rowNodes.length; row++) {
+    const nodeIdx = rowNodes[row];
+    const sampleIdx = Math.min(nodeIdx * samplesPerEdge, samples.length - 1);
+    const s = samples[sampleIdx];
+
+    const rank1 = row * 2 + 1; // 1,3,5,7,9,11 — race line side, staggered
+    const rank2 = row * 2 + 2; // 2,4,6,8,10,12 — opposite side
+
+    result.push({
+      rank: rank1,
+      center: {
+        x: s.point.x + s.normal.x * halfWidth * 0.5 * raceLineSide + s.tangent.x * stagger,
+        y: s.point.y + s.normal.y * halfWidth * 0.5 * raceLineSide + s.tangent.y * stagger,
+      },
+      tangent: { x: s.tangent.x, y: s.tangent.y },
+      normal:  { x: s.normal.x,  y: s.normal.y  },
+      side: raceLineSide,
+    });
+
+    result.push({
+      rank: rank2,
+      center: {
+        x: s.point.x - s.normal.x * halfWidth * 0.5 * raceLineSide,
+        y: s.point.y - s.normal.y * halfWidth * 0.5 * raceLineSide,
+      },
+      tangent: { x: s.tangent.x, y: s.tangent.y },
+      normal:  { x: s.normal.x,  y: s.normal.y  },
+      side: (-raceLineSide) as 1 | -1,
+    });
+  }
+
+  return result;
+}

@@ -17,6 +17,7 @@ import {
   buildLegendsMarkers,
   buildCountdownMarkers,
   buildSectorCountdownNumbers,
+  buildStartingGridBoxes,
   buildPhantomOverlays,
 } from '../lib/trackGeometry';
 import { getStyleById } from '../lib/stylePresets';
@@ -154,6 +155,13 @@ export const StyleCanvas: React.FC<Props> = ({ stageRef }) => {
       ? buildSectorCountdownNumbers(samples, computed, segmentData, SAMPLES_PER_EDGE, halfWidth, nodes)
       : []),
     [samples, computed, segmentData, halfWidth, nodes],
+  );
+
+  const startingGridBoxes = useMemo(
+    () => (samples.length >= 4
+      ? buildStartingGridBoxes(samples, nodes, segmentData, SAMPLES_PER_EDGE, halfWidth)
+      : []),
+    [samples, nodes, segmentData, halfWidth],
   );
 
   const phantomOverlays = useMemo(
@@ -857,6 +865,63 @@ export const StyleCanvas: React.FC<Props> = ({ stageRef }) => {
                   text={m.label}
                   fill="#000000"
                   fontSize={S * 1.55}
+                  fontStyle="bold"
+                  align="center"
+                  verticalAlign="middle"
+                  listening={false}
+                />
+              </Group>
+            );
+          })}
+
+          {/* Starting grid boxes — 12 positions, bracket "[ ]" style */}
+          {startingGridBoxes.map(b => {
+            const { center, tangent, normal, side, rank } = b;
+            const halfLen  = halfWidth * 0.75; // half-box length along track
+            const armLen   = halfWidth * 0.22; // length of bracket arms
+            const barHalf  = halfWidth * 0.5;  // half the lane width (center→edge)
+            const sw       = (style.track.edgeWidth * 2.2) / zoom;
+            const color    = style.track.edgeStroke;
+            const fontSize = halfWidth * 0.45;
+
+            // Bar endpoints relative to bracket center (in normal direction of the lane)
+            const b1x = -normal.x * barHalf * side;
+            const b1y = -normal.y * barHalf * side;
+            const b2x =  normal.x * barHalf * side;
+            const b2y =  normal.y * barHalf * side;
+
+            // Forward bracket position (closer to finish line)
+            const fwdX = center.x + tangent.x * halfLen;
+            const fwdY = center.y + tangent.y * halfLen;
+            // Backward bracket position
+            const bwdX = center.x - tangent.x * halfLen;
+            const bwdY = center.y - tangent.y * halfLen;
+
+            return (
+              <Group key={`sg-${rank}`}>
+                {/* Forward bracket "["  — arms point backward into box */}
+                <Line points={[fwdX + b1x, fwdY + b1y, fwdX + b2x, fwdY + b2y]}
+                  stroke={color} strokeWidth={sw} lineCap="square" />
+                <Line points={[fwdX + b1x, fwdY + b1y, fwdX + b1x - tangent.x * armLen, fwdY + b1y - tangent.y * armLen]}
+                  stroke={color} strokeWidth={sw} lineCap="square" />
+                <Line points={[fwdX + b2x, fwdY + b2y, fwdX + b2x - tangent.x * armLen, fwdY + b2y - tangent.y * armLen]}
+                  stroke={color} strokeWidth={sw} lineCap="square" />
+
+                {/* Backward bracket "]" — arms point forward into box */}
+                <Line points={[bwdX + b1x, bwdY + b1y, bwdX + b2x, bwdY + b2y]}
+                  stroke={color} strokeWidth={sw} lineCap="square" />
+                <Line points={[bwdX + b1x, bwdY + b1y, bwdX + b1x + tangent.x * armLen, bwdY + b1y + tangent.y * armLen]}
+                  stroke={color} strokeWidth={sw} lineCap="square" />
+                <Line points={[bwdX + b2x, bwdY + b2y, bwdX + b2x + tangent.x * armLen, bwdY + b2y + tangent.y * armLen]}
+                  stroke={color} strokeWidth={sw} lineCap="square" />
+
+                {/* Rank number */}
+                <Text
+                  x={center.x - fontSize} y={center.y - fontSize}
+                  width={fontSize * 2} height={fontSize * 2}
+                  text={String(rank)}
+                  fill={color}
+                  fontSize={fontSize}
                   fontStyle="bold"
                   align="center"
                   verticalAlign="middle"
