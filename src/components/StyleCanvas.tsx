@@ -878,14 +878,7 @@ export const StyleCanvas: React.FC<Props> = ({ stageRef }) => {
               const color = style.markers.chicaneStripeStroke;
               return (
                 <Group key={m.id} x={m.x} y={m.y} rotation={m.rotation}>
-                  <KonvaImage
-                    image={conditionMarkerImg}
-                    x={-half}
-                    y={-half}
-                    width={imgSize}
-                    height={imgSize}
-                  />
-                  {/* Checkered border for chicane only */}
+                  {/* Checkered border for chicane only — drawn first so PNG renders on top */}
                   {m.type === 'chicane' && (
                     <>
                       <Rect x={-half} y={-half} width={imgSize} height={imgSize}
@@ -895,6 +888,13 @@ export const StyleCanvas: React.FC<Props> = ({ stageRef }) => {
                         dash={[sq, sq]} />
                     </>
                   )}
+                  <KonvaImage
+                    image={conditionMarkerImg}
+                    x={-half}
+                    y={-half}
+                    width={imgSize}
+                    height={imgSize}
+                  />
                 </Group>
               );
             }
