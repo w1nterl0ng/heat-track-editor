@@ -144,8 +144,8 @@ export const STYLE_PRINT: TrackStyle = {
   markers: {
     cornerStroke: '#000000',
     cornerLabelColor: '#000000',
-    cornerStripeStroke: '#000000',
-    chicaneStripeStroke: '#000000',
+    cornerStripeStroke: '#dc2626',
+    chicaneStripeStroke: '#2563eb',
     finishStroke: '#000000',
     finishLabelColor: '#000000',
     legendsStroke: '#444444',

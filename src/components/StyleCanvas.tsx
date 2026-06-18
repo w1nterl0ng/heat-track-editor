@@ -388,37 +388,40 @@ export const StyleCanvas: React.FC<Props> = ({ stageRef }) => {
             />
           ))}
 
-          {/* Corner stripes */}
-          {cornerStripes.map((arc, i) => (
-            <Line
-              key={`cstripe-${i}`}
-              points={arc.points}
-              stroke={style.markers.cornerStripeStroke}
-              strokeWidth={halfWidth * 0.08}
-              lineCap="round"
-              dash={[halfWidth * 0.12, halfWidth * 0.08]}
-            />
-          ))}
+          {/* Corner curbing — alternating squares (solid base + white dash overlay) */}
+          {cornerStripes.map((arc, i) => {
+            const sw = halfWidth * 0.13;  // stripe width = square height
+            const sq = sw;                // dash length ≈ width → square
+            return (
+              <React.Fragment key={`cstripe-${i}`}>
+                <Line points={arc.points} stroke={style.markers.cornerStripeStroke}
+                  strokeWidth={sw} lineCap="butt" lineJoin="miter" />
+                <Line points={arc.points} stroke="#ffffff"
+                  strokeWidth={sw} lineCap="butt" lineJoin="miter"
+                  dash={[sq, sq]} />
+              </React.Fragment>
+            );
+          })}
 
-          {/* Chicane stripes — inner and outer edges */}
-          {chicaneStripes.map((arc, i) => (
-            <React.Fragment key={`chistripe-${i}`}>
-              <Line
-                points={arc.innerPoints}
-                stroke={style.markers.chicaneStripeStroke}
-                strokeWidth={halfWidth * 0.08}
-                lineCap="round"
-                dash={[halfWidth * 0.12, halfWidth * 0.08]}
-              />
-              <Line
-                points={arc.outerPoints}
-                stroke={style.markers.chicaneStripeStroke}
-                strokeWidth={halfWidth * 0.08}
-                lineCap="round"
-                dash={[halfWidth * 0.12, halfWidth * 0.08]}
-              />
-            </React.Fragment>
-          ))}
+          {/* Chicane curbing — blue/white alternating squares on inner and outer edges */}
+          {chicaneStripes.map((arc, i) => {
+            const sw = halfWidth * 0.13;
+            const sq = sw;
+            return (
+              <React.Fragment key={`chistripe-${i}`}>
+                <Line points={arc.innerPoints} stroke={style.markers.chicaneStripeStroke}
+                  strokeWidth={sw} lineCap="butt" lineJoin="miter" />
+                <Line points={arc.innerPoints} stroke="#ffffff"
+                  strokeWidth={sw} lineCap="butt" lineJoin="miter"
+                  dash={[sq, sq]} />
+                <Line points={arc.outerPoints} stroke={style.markers.chicaneStripeStroke}
+                  strokeWidth={sw} lineCap="butt" lineJoin="miter" />
+                <Line points={arc.outerPoints} stroke="#ffffff"
+                  strokeWidth={sw} lineCap="butt" lineJoin="miter"
+                  dash={[sq, sq]} />
+              </React.Fragment>
+            );
+          })}
 
           {/* Space ticks (spaceTicks is SpaceTick[][] — one array per segment) */}
           {spaceTicks.map((segTicks, si) =>
