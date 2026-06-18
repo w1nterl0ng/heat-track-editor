@@ -871,44 +871,11 @@ export const StyleCanvas: React.FC<Props> = ({ stageRef }) => {
             const imgSize = halfWidth * 1.90;
             const half = imgSize / 2;
 
-            // ── Chicane: blue/white checkered square tile ─────────────────────
-            if (m.type === 'chicane') {
-              const outerSize = imgSize;
-              const sw   = outerSize * 0.10;   // border stripe width = square height
-              const sq   = sw;                  // dash length ≈ width → square
-              const innerSize = outerSize - sw * 2;
-              const innerHalf = innerSize / 2;
-              const color = style.markers.chicaneStripeStroke;
-              return (
-                <Group key={m.id} x={m.x} y={m.y} rotation={m.rotation}>
-                  {/* White background fill */}
-                  <Rect x={-half} y={-half} width={outerSize} height={outerSize} fill="#ffffff" />
-                  {/* Checkered border — solid blue base + white dashes on top */}
-                  <Rect x={-half} y={-half} width={outerSize} height={outerSize}
-                    stroke={color} strokeWidth={sw} fill="transparent" />
-                  <Rect x={-half} y={-half} width={outerSize} height={outerSize}
-                    stroke="#ffffff" strokeWidth={sw} fill="transparent"
-                    dash={[sq, sq]} />
-                  {/* Blue inner square */}
-                  <Rect x={-innerHalf} y={-innerHalf} width={innerSize} height={innerSize}
-                    fill={color} cornerRadius={sw * 0.3} />
-                  {/* Label */}
-                  <Text
-                    x={-innerHalf} y={-innerHalf}
-                    width={innerSize} height={innerSize}
-                    text={m.label}
-                    fill="#ffffff"
-                    fontSize={innerSize * 0.38}
-                    fontStyle="bold"
-                    align="center"
-                    verticalAlign="middle"
-                  />
-                </Group>
-              );
-            }
-
-            // ── Sector / corner: PNG building or fallback colored box ─────────
+            // ── PNG building + optional checkered border for chicane ─────────
             if (conditionMarkerImg) {
+              const sw    = imgSize * 0.10;   // border stripe width = square height
+              const sq    = sw;               // dash → square
+              const color = style.markers.chicaneStripeStroke;
               return (
                 <Group key={m.id} x={m.x} y={m.y} rotation={m.rotation}>
                   <KonvaImage
@@ -918,6 +885,16 @@ export const StyleCanvas: React.FC<Props> = ({ stageRef }) => {
                     width={imgSize}
                     height={imgSize}
                   />
+                  {/* Checkered border for chicane only */}
+                  {m.type === 'chicane' && (
+                    <>
+                      <Rect x={-half} y={-half} width={imgSize} height={imgSize}
+                        stroke={color} strokeWidth={sw} fill="transparent" />
+                      <Rect x={-half} y={-half} width={imgSize} height={imgSize}
+                        stroke="#ffffff" strokeWidth={sw} fill="transparent"
+                        dash={[sq, sq]} />
+                    </>
+                  )}
                 </Group>
               );
             }
