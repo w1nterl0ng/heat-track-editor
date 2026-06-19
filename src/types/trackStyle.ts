@@ -66,6 +66,12 @@ export interface TrackStyleLollipops {
    * to align with the track edge using the local normal vector.
    */
   conditionMarkerImageSrc: string | null;
+  /**
+   * Which podium graphic layout to use.
+   * 'tall' = vertical staircase layout; 'square' = compact square layout.
+   * Only rendered when at least one podium slot is placed in the editor.
+   */
+  podiumGraphic: 'tall' | 'square';
 }
 
 export interface TrackStyleSurfaces {

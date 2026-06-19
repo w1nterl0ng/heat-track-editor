@@ -1,4 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import podiumTallUrl from '../assets/podium_tall.png';
+import podiumSquareUrl from '../assets/podium_square.png';
 import { Stage, Layer, Line, Circle, Arc, Rect, Text, Image as KonvaImage, Group } from 'react-konva';
 import Konva from 'konva';
 import { useEditorStore, computeSegments } from '../store/editorStore';
@@ -37,6 +39,7 @@ export const StyleCanvas: React.FC<Props> = ({ stageRef }) => {
     trackWidthPct,
     segmentData,
     conditionMarkers,
+    podiumSlots,
     backgroundImage,
     backgroundOpacity,
     backgroundSize,
@@ -67,6 +70,7 @@ export const StyleCanvas: React.FC<Props> = ({ stageRef }) => {
   const [speedMarkerImg, setSpeedMarkerImg] = useState<HTMLImageElement | null>(null);
   const [legendsMarkerImg, setLegendsMarkerImg] = useState<HTMLImageElement | null>(null);
   const [conditionMarkerImg, setConditionMarkerImg] = useState<HTMLImageElement | null>(null);
+  const [podiumImg, setPodiumImg] = useState<HTMLImageElement | null>(null);
 
   const isPanning = useRef(false);
   const panStart = useRef<{ mx: number; my: number; px: number; py: number } | null>(null);
@@ -101,6 +105,13 @@ export const StyleCanvas: React.FC<Props> = ({ stageRef }) => {
     img.src = src;
     img.onload = () => setConditionMarkerImg(img);
   }, [style.lollipops.conditionMarkerImageSrc]);
+
+  useEffect(() => {
+    const src = style.lollipops.podiumGraphic === 'square' ? podiumSquareUrl : podiumTallUrl;
+    const img = new window.Image();
+    img.src = src;
+    img.onload = () => setPodiumImg(img);
+  }, [style.lollipops.podiumGraphic]);
 
   // ── Geometry (mirrors TrackCanvas useMemo deps) ───────────────────────────
 
@@ -923,6 +934,25 @@ export const StyleCanvas: React.FC<Props> = ({ stageRef }) => {
               </React.Fragment>
             );
           })}
+
+          {/* Podium graphic — rendered at rank-1 slot position; only when slots are defined */}
+          {podiumImg && podiumSlots.length > 0 && (() => {
+            const slot = podiumSlots.find(s => s.rank === 1) ?? podiumSlots[0];
+            // Initial scale: 8× the half-track-width wide; height proportional
+            const imgW = halfWidth * 8;
+            const imgH = imgW * (podiumImg.naturalHeight / podiumImg.naturalWidth);
+            return (
+              <Group x={slot.x} y={slot.y} rotation={slot.rotation}>
+                <KonvaImage
+                  image={podiumImg}
+                  x={-imgW / 2}
+                  y={-imgH / 2}
+                  width={imgW}
+                  height={imgH}
+                />
+              </Group>
+            );
+          })()}
 
           {/* Condition markers (S/C tiles) — chicane gets checkered border, others use PNG/fallback */}
           {conditionMarkers.map(m => {

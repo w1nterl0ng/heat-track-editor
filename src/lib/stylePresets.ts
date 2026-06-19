@@ -2,6 +2,7 @@ import type { TrackStyle } from '../types/trackStyle';
 import speedLimitSignUrl from '../assets/speed_limit_sign.png';
 import legendsMarkerUrl from '../assets/legends_marker.png';
 import conditionMarkerUrl from '../assets/condition_marker.png';
+// Podium graphic URLs are imported in StyleCanvas directly to avoid bundling both in presets
 
 /**
  * The "Default" style matches the current editor's hardcoded colors exactly,
@@ -52,6 +53,7 @@ export const STYLE_DEFAULT: TrackStyle = {
     countdownFill: '#f59e0b',
     countdownStroke: '#f59e0b',
     conditionMarkerImageSrc: null,
+    podiumGraphic: 'tall',
   },
   surfaces: {
     tunnel:  { fill: '#292524', opacity: 0.72 },
@@ -109,6 +111,7 @@ export const STYLE_BLUEPRINT: TrackStyle = {
     countdownFill: '#1e3a8a',
     countdownStroke: '#93c5fd',
     conditionMarkerImageSrc: conditionMarkerUrl,
+    podiumGraphic: 'tall',
   },
   surfaces: {
     tunnel:  { fill: '#0f172a', opacity: 0.8 },
@@ -166,6 +169,7 @@ export const STYLE_PRINT: TrackStyle = {
     countdownFill: '#ffffff',
     countdownStroke: '#000000',
     conditionMarkerImageSrc: conditionMarkerUrl,
+    podiumGraphic: 'tall',
   },
   surfaces: {
     tunnel:  { fill: '#cccccc', opacity: 0.60 },

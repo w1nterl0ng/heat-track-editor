@@ -255,6 +255,24 @@ const ColorEditor: React.FC<ColorEditorProps> = ({ style: s, onField }) => {
         <ColorField label="Legends label"     value={s.lollipops.legendsLabelColor} onChange={v => lo('legendsLabelColor', v)} />
         <ColorField label="Countdown fill"    value={s.lollipops.countdownFill}     onChange={v => lo('countdownFill', v)} />
         <ColorField label="Countdown stroke"  value={s.lollipops.countdownStroke}   onChange={v => lo('countdownStroke', v)} />
+        {/* Podium graphic style */}
+        <div style={cfStyles.row}>
+          <span style={cfStyles.label}>Podium graphic</span>
+          <div style={edStyles.toggleRow}>
+            {(['tall', 'square'] as const).map(shape => (
+              <button
+                key={shape}
+                onClick={() => onField('lollipops', 'podiumGraphic', shape)}
+                style={{
+                  ...edStyles.toggleBtn,
+                  ...(s.lollipops.podiumGraphic === shape ? edStyles.toggleBtnActive : {}),
+                }}
+              >
+                {shape}
+              </button>
+            ))}
+          </div>
+        </div>
       </div>
 
     </div>
