@@ -578,11 +578,11 @@ export const StyleCanvas: React.FC<Props> = ({ stageRef }) => {
             const ty =  nx;
             // Place on the side OPPOSITE to the race line
             const oppSide = -startingGridRows[0].raceLineSide;
-            const imgW = halfWidth * 2.7; // 10% smaller
+            const imgW = halfWidth * 2.565; // further 5% smaller (×0.95)
             const imgH = imgW * (noSlipImg.naturalHeight / noSlipImg.naturalWidth);
-            // Center of image: halfWidth * 2 from track center on the opposite side
-            const px = center.x + nx * oppSide * halfWidth * 2;
-            const py = center.y + ny * oppSide * halfWidth * 2;
+            // Center of image: more clearance from track edge
+            const px = center.x + nx * oppSide * halfWidth * 2.8;
+            const py = center.y + ny * oppSide * halfWidth * 2.8;
             const rotDeg = Math.atan2(ty, tx) * (180 / Math.PI) + 180;
             return (
               <Group x={px} y={py} rotation={rotDeg}>
