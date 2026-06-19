@@ -985,26 +985,26 @@ export const StyleCanvas: React.FC<Props> = ({ stageRef }) => {
             const imgLeft = weatherToken.x + xOff;
             const imgTop  = weatherToken.y - wh / 2;
             const fs = wh * 0.28; // doubled font size
-            const cardX = imgLeft + ww * 0.05; // shifted right
+            const cardX = imgLeft + ww * 0.06; // shifted right
             const cardW = ww * 0.14;
             return (
               <Group>
                 <KonvaImage image={weatherHolderImg} x={imgLeft} y={imgTop} width={ww} height={wh} listening={false} />
                 {/* StartingHeat — orange card (top of left column, ~6–47% height) */}
                 <Text
-                  x={cardX} y={imgTop + wh * 0.06}
+                  x={cardX} y={imgTop + wh * 0.07}
                   width={cardW} height={wh * 0.41}
                   text={String(meta.heat)}
-                  fill="#ffffff" stroke="#000000" strokeWidth={fs * 0.12}
+                  fill="#ffffff" stroke="#000000" strokeWidth={fs * 0.02}
                   fontSize={fs} fontStyle="bold"
                   align="center" verticalAlign="middle" listening={false}
                 />
                 {/* StartingStress — yellow card (bottom of left column, ~53–93% height) */}
                 <Text
-                  x={cardX} y={imgTop + wh * 0.53}
+                  x={cardX} y={imgTop + wh * 0.51}
                   width={cardW} height={wh * 0.40}
                   text={String(meta.stress)}
-                  fill="#ffffff" stroke="#000000" strokeWidth={fs * 0.12}
+                  fill="#ffffff" stroke="#000000" strokeWidth={fs * 0.02}
                   fontSize={fs} fontStyle="bold"
                   align="center" verticalAlign="middle" listening={false}
                 />
@@ -1020,21 +1020,21 @@ export const StyleCanvas: React.FC<Props> = ({ stageRef }) => {
             const imgTop  = trackStats.y - wh / 2;
             const totalSpaces = computed.reduce((s, seg) => s + seg.spaces, 0);
             const cornerCount = computed.length;
-            const fs = wh * 0.55;
+            const fs = wh * 0.50;
             return (
               <Group>
                 <KonvaImage image={trackStatsImg} x={imgLeft} y={imgTop} width={ww} height={wh} listening={false} />
                 {/* Laps — inside arrow circle, left section (~0–21% width) */}
                 <Text
-                  x={imgLeft + ww * 0.01} y={imgTop + wh * 0.08}
+                  x={imgLeft + ww * 0.05} y={imgTop + wh * 0.20}
                   width={ww * 0.20} height={wh * 0.84}
                   text={String(meta.laps)}
-                  fill="#f0ece0" fontSize={fs} fontStyle="bold"
+                  fill="#1a1a1a" fontSize={fs} fontStyle="bold"
                   align="center" verticalAlign="middle" listening={false}
                 />
                 {/* Total spaces — cream center box (~22–60% width) */}
                 <Text
-                  x={imgLeft + ww * 0.22} y={imgTop + wh * 0.04}
+                  x={imgLeft + ww * 0.32} y={imgTop + wh * 0.04}
                   width={ww * 0.38} height={wh * 0.55}
                   text={String(totalSpaces)}
                   fill="#1a1a1a" fontSize={fs} fontStyle="bold"
@@ -1042,7 +1042,7 @@ export const StyleCanvas: React.FC<Props> = ({ stageRef }) => {
                 />
                 {/* Corners — speed dial, right section (~67–97% width) */}
                 <Text
-                  x={imgLeft + ww * 0.67} y={imgTop + wh * 0.08}
+                  x={imgLeft + ww * 0.71} y={imgTop + wh * 0.15}
                   width={ww * 0.30} height={wh * 0.84}
                   text={String(cornerCount)}
                   fill="#f0ece0" fontSize={fs} fontStyle="bold"
