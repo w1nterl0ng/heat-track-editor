@@ -941,13 +941,15 @@ export const StyleCanvas: React.FC<Props> = ({ stageRef }) => {
             // Initial scale: 8× the half-track-width wide; height proportional
             const imgW = halfWidth * 8;
             const imgH = imgW * (podiumImg.naturalHeight / podiumImg.naturalWidth);
-            // Tall variant: shift down 35% of height so rank-1 box aligns with the slot
-            const yOff = style.lollipops.podiumGraphic === 'tall' ? imgH * 0.35 : 0;
+            // Offsets so rank-1 box aligns with the placed slot
+            const isTall  = style.lollipops.podiumGraphic === 'tall';
+            const xOff = isTall ? 0          : imgW * 0.30;
+            const yOff = isTall ? imgH * 0.35 : imgH * 0.10;
             return (
               <Group x={slot.x} y={slot.y} rotation={slot.rotation}>
                 <KonvaImage
                   image={podiumImg}
-                  x={-imgW / 2}
+                  x={-imgW / 2 + xOff}
                   y={-imgH / 2 + yOff}
                   width={imgW}
                   height={imgH}
