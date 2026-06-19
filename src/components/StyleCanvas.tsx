@@ -40,6 +40,7 @@ export const StyleCanvas: React.FC<Props> = ({ stageRef }) => {
     loopClosed,
     trackWidthPct,
     segmentData,
+    meta,
     conditionMarkers,
     podiumSlots,
     weatherToken,
@@ -976,36 +977,74 @@ export const StyleCanvas: React.FC<Props> = ({ stageRef }) => {
             );
           })()}
 
-          {/* Weather holder — placed at the weather token position, offset 10% left */}
+          {/* Weather holder — with StartingHeat and StartingStress overlaid on the cards */}
           {weatherHolderImg && weatherToken && (() => {
             const ww = weatherToken.width * 1.4;
             const wh = ww * (weatherHolderImg.naturalHeight / weatherHolderImg.naturalWidth);
-            const xOff = -ww * 0.60; // 10% left
+            const xOff = -ww * 0.60;
+            const imgLeft = weatherToken.x + xOff;
+            const imgTop  = weatherToken.y - wh / 2;
+            const fs = wh * 0.14; // font size relative to card height
             return (
-              <KonvaImage
-                image={weatherHolderImg}
-                x={weatherToken.x + xOff}
-                y={weatherToken.y - wh / 2}
-                width={ww}
-                height={wh}
-                listening={false}
-              />
+              <Group>
+                <KonvaImage image={weatherHolderImg} x={imgLeft} y={imgTop} width={ww} height={wh} listening={false} />
+                {/* StartingHeat — orange card (top of left column, ~6–47% height) */}
+                <Text
+                  x={imgLeft + ww * 0.02} y={imgTop + wh * 0.06}
+                  width={ww * 0.17} height={wh * 0.41}
+                  text={String(meta.heat)}
+                  fill="#1a1a1a" fontSize={fs} fontStyle="bold"
+                  align="center" verticalAlign="middle" listening={false}
+                />
+                {/* StartingStress — yellow card (bottom of left column, ~53–93% height) */}
+                <Text
+                  x={imgLeft + ww * 0.02} y={imgTop + wh * 0.53}
+                  width={ww * 0.17} height={wh * 0.40}
+                  text={String(meta.stress)}
+                  fill="#1a1a1a" fontSize={fs} fontStyle="bold"
+                  align="center" verticalAlign="middle" listening={false}
+                />
+              </Group>
             );
           })()}
 
-          {/* Track stats graphic — placed at trackStats position */}
+          {/* Track stats graphic — with laps, totalSpaces, corners overlaid */}
           {trackStatsImg && trackStats && (() => {
             const ww = trackStats.width;
             const wh = ww * (trackStatsImg.naturalHeight / trackStatsImg.naturalWidth);
+            const imgLeft = trackStats.x - ww / 2;
+            const imgTop  = trackStats.y - wh / 2;
+            const totalSpaces = computed.reduce((s, seg) => s + seg.spaces, 0);
+            const cornerCount = computed.length;
+            const fs = wh * 0.55;
             return (
-              <KonvaImage
-                image={trackStatsImg}
-                x={trackStats.x - ww / 2}
-                y={trackStats.y - wh / 2}
-                width={ww}
-                height={wh}
-                listening={false}
-              />
+              <Group>
+                <KonvaImage image={trackStatsImg} x={imgLeft} y={imgTop} width={ww} height={wh} listening={false} />
+                {/* Laps — inside arrow circle, left section (~0–21% width) */}
+                <Text
+                  x={imgLeft + ww * 0.01} y={imgTop + wh * 0.08}
+                  width={ww * 0.20} height={wh * 0.84}
+                  text={String(meta.laps)}
+                  fill="#f0ece0" fontSize={fs} fontStyle="bold"
+                  align="center" verticalAlign="middle" listening={false}
+                />
+                {/* Total spaces — cream center box (~22–60% width) */}
+                <Text
+                  x={imgLeft + ww * 0.22} y={imgTop + wh * 0.04}
+                  width={ww * 0.38} height={wh * 0.55}
+                  text={String(totalSpaces)}
+                  fill="#1a1a1a" fontSize={fs} fontStyle="bold"
+                  align="center" verticalAlign="middle" listening={false}
+                />
+                {/* Corners — speed dial, right section (~67–97% width) */}
+                <Text
+                  x={imgLeft + ww * 0.67} y={imgTop + wh * 0.08}
+                  width={ww * 0.30} height={wh * 0.84}
+                  text={String(cornerCount)}
+                  fill="#f0ece0" fontSize={fs} fontStyle="bold"
+                  align="center" verticalAlign="middle" listening={false}
+                />
+              </Group>
             );
           })()}
 
