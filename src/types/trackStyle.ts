@@ -74,10 +74,23 @@ export interface TrackStyleLollipops {
   podiumGraphic: 'tall' | 'square';
 }
 
+export interface TrackStyleSurface {
+  fill: string;
+  opacity: number;
+  /** If false, this surface type is rendered transparent (hidden). */
+  visible: boolean;
+}
+
 export interface TrackStyleSurfaces {
-  tunnel: { fill: string; opacity: number };
-  flooded: { fill: string; opacity: number };
-  gravel: { fill: string; opacity: number };
+  tunnel:  TrackStyleSurface;
+  flooded: TrackStyleSurface & {
+    /** Render with start/middle/end images instead of a flat color. */
+    useImages: boolean;
+  };
+  gravel:  TrackStyleSurface & {
+    /** Render with tiled gravel texture instead of a flat color. */
+    useTexture: boolean;
+  };
 }
 
 export interface TrackStyle {

@@ -56,9 +56,9 @@ export const STYLE_DEFAULT: TrackStyle = {
     podiumGraphic: 'tall',
   },
   surfaces: {
-    tunnel:  { fill: '#292524', opacity: 0.72 },
-    flooded: { fill: '#3b82f6', opacity: 0.45 },
-    gravel:  { fill: '#d97706', opacity: 0.50 },
+    tunnel:  { fill: '#292524', opacity: 0.72, visible: true },
+    flooded: { fill: '#3b82f6', opacity: 0.45, visible: true,  useImages: false },
+    gravel:  { fill: '#d97706', opacity: 0.50, visible: true,  useTexture: false },
   },
 };
 
@@ -114,9 +114,9 @@ export const STYLE_BLUEPRINT: TrackStyle = {
     podiumGraphic: 'tall',
   },
   surfaces: {
-    tunnel:  { fill: '#0f172a', opacity: 0.8 },
-    flooded: { fill: '#1e3a8a', opacity: 0.55 },
-    gravel:  { fill: '#44403c', opacity: 0.55 },
+    tunnel:  { fill: '#0f172a', opacity: 0.8,  visible: true },
+    flooded: { fill: '#1e3a8a', opacity: 0.55, visible: true,  useImages: true },
+    gravel:  { fill: '#44403c', opacity: 0.55, visible: true,  useTexture: true },
   },
 };
 
@@ -172,9 +172,9 @@ export const STYLE_PRINT: TrackStyle = {
     podiumGraphic: 'tall',
   },
   surfaces: {
-    tunnel:  { fill: '#cccccc', opacity: 0.60 },
-    flooded: { fill: '#aaaaaa', opacity: 0.40 },
-    gravel:  { fill: '#888888', opacity: 0.35 },
+    tunnel:  { fill: '#888888', opacity: 0.55, visible: true },
+    flooded: { fill: '#3b82f6', opacity: 0.45, visible: true,  useImages: true },
+    gravel:  { fill: '#c4a26b', opacity: 0.55, visible: true,  useTexture: true },
   },
 };
 

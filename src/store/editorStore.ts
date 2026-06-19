@@ -324,6 +324,12 @@ interface EditorStore extends EditorState, EditorActions {
     key: string,
     value: string | number | boolean | number[],
   ): void;
+  /** Updates a single field within a surface sub-object on the custom style. */
+  updateCustomStyleSurface(
+    type: 'tunnel' | 'flooded' | 'gravel',
+    key: string,
+    value: string | number | boolean,
+  ): void;
 }
 
 const DEFAULT_CANVAS = 1200;
@@ -1000,6 +1006,23 @@ export const useEditorStore = create<EditorStore>()(
           [section]: {
             ...(s.customStyle[section] as Record<string, unknown>),
             [key]: value,
+          },
+        },
+      });
+    },
+
+    updateCustomStyleSurface(type, key, value) {
+      const s = get();
+      if (!s.customStyle) return;
+      set({
+        customStyle: {
+          ...s.customStyle,
+          surfaces: {
+            ...s.customStyle.surfaces,
+            [type]: {
+              ...(s.customStyle.surfaces[type] as Record<string, unknown>),
+              [key]: value,
+            },
           },
         },
       });

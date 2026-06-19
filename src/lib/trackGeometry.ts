@@ -824,6 +824,79 @@ export function buildPhantomOverlays(
   return result;
 }
 
+// ── Surface image tiles ───────────────────────────────────────────────────────
+
+export interface SurfaceTile {
+  x: number;
+  y: number;
+  /** Clockwise degrees, aligned with track tangent. */
+  rotation: number;
+  /** Position within its contiguous section. */
+  kind: 'start' | 'middle' | 'end' | 'only';
+  side: SurfaceSide;
+}
+
+/**
+ * Build per-space tile positions for flooded or gravel surface sections.
+ * Returns one tile per surface space; consecutive same-type spaces form a
+ * section whose first space is 'start', last is 'end', and middle ones are
+ * 'middle'.  Lone single-space sections get 'only'.
+ */
+export function buildSurfaceTiles(
+  samples: SplineSample[],
+  nodes: TrackNode[],
+  samplesPerEdge: number,
+  type: SurfaceType,
+): SurfaceTile[] {
+  if (samples.length === 0) return [];
+
+  // Collect indices of matching non-phantom nodes
+  const typeNodeIndices: number[] = nodes
+    .map((nd, i) => (nd.surfaceType === type && !nd.isPhantom ? i : -1))
+    .filter(i => i >= 0);
+
+  // Group into contiguous sections (consecutive index jumps of 1)
+  const sections: number[][] = [];
+  for (const ni of typeNodeIndices) {
+    const last = sections[sections.length - 1];
+    if (last && ni === last[last.length - 1] + 1) {
+      last.push(ni);
+    } else {
+      sections.push([ni]);
+    }
+  }
+
+  const result: SurfaceTile[] = [];
+  const totalSamples = samples.length;
+
+  for (const section of sections) {
+    for (let si = 0; si < section.length; si++) {
+      const nodeIdx = section[si];
+      // Sample at midpoint of this space
+      const midIdx = (nodeIdx * samplesPerEdge + Math.floor(samplesPerEdge / 2)) % totalSamples;
+      const s = samples[midIdx];
+
+      const kind: 'start' | 'middle' | 'end' | 'only' =
+        section.length === 1 ? 'only' :
+        si === 0             ? 'start' :
+        si === section.length - 1 ? 'end' : 'middle';
+
+      const nd = nodes[nodeIdx];
+      const side: SurfaceSide = type === 'tunnel' ? 'both' : nd.surfaceSide;
+
+      result.push({
+        x: s.point.x,
+        y: s.point.y,
+        rotation: Math.atan2(s.tangent.y, s.tangent.x) * (180 / Math.PI),
+        kind,
+        side,
+      });
+    }
+  }
+
+  return result;
+}
+
 // ── Starting grid ─────────────────────────────────────────────────────────────
 
 export interface StartingGridRow {

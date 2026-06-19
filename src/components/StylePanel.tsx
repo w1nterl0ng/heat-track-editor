@@ -186,9 +186,10 @@ const NumberField: React.FC<NumberFieldProps> = ({ label, value, min, max, step 
 interface ColorEditorProps {
   style: TrackStyle;
   onField: (section: 'background' | 'track' | 'markers' | 'lollipops', key: string, value: string | number | boolean | number[]) => void;
+  onSurface: (type: 'tunnel' | 'flooded' | 'gravel', key: string, value: string | number | boolean) => void;
 }
 
-const ColorEditor: React.FC<ColorEditorProps> = ({ style: s, onField }) => {
+const ColorEditor: React.FC<ColorEditorProps> = ({ style: s, onField, onSurface }) => {
   const bg  = (k: string, v: string | number | boolean) => onField('background', k, v);
   const tr  = (k: string, v: string | number | boolean) => onField('track', k, v);
   const mk  = (k: string, v: string | number | boolean) => onField('markers', k, v);
@@ -275,6 +276,69 @@ const ColorEditor: React.FC<ColorEditorProps> = ({ style: s, onField }) => {
         </div>
       </div>
 
+      <div style={edStyles.group}>
+        <div style={edStyles.groupLabel}>Surfaces</div>
+        {(['tunnel', 'flooded', 'gravel'] as const).map(type => {
+          const surf = s.surfaces[type] as Record<string, unknown>;
+          return (
+            <React.Fragment key={type}>
+              <div style={{ ...edStyles.groupLabel, marginTop: 6, textTransform: 'none', fontSize: 10, color: '#64748b' }}>
+                {type.charAt(0).toUpperCase() + type.slice(1)}
+              </div>
+              {/* Visible toggle */}
+              <div style={cfStyles.row}>
+                <span style={cfStyles.label}>Visible</span>
+                <div style={edStyles.toggleRow}>
+                  {([true, false] as const).map(v => (
+                    <button key={String(v)}
+                      onClick={() => onSurface(type, 'visible', v)}
+                      style={{ ...edStyles.toggleBtn, ...(surf.visible === v ? edStyles.toggleBtnActive : {}) }}>
+                      {v ? 'show' : 'hide'}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <ColorField  label="Fill"    value={surf.fill    as string} onChange={v => onSurface(type, 'fill', v)} />
+              <NumberField label="Opacity" value={surf.opacity as number} min={0} max={1} step={0.05} onChange={v => onSurface(type, 'opacity', v)} />
+              {type === 'flooded' && (
+                <div style={cfStyles.row}>
+                  <span style={cfStyles.label}>Style</span>
+                  <div style={edStyles.toggleRow}>
+                    {(['flat', 'images'] as const).map(v => {
+                      const useImg = v === 'images';
+                      const active = (surf.useImages as boolean) === useImg;
+                      return (
+                        <button key={v} onClick={() => onSurface('flooded', 'useImages', useImg)}
+                          style={{ ...edStyles.toggleBtn, ...(active ? edStyles.toggleBtnActive : {}) }}>
+                          {v}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+              {type === 'gravel' && (
+                <div style={cfStyles.row}>
+                  <span style={cfStyles.label}>Style</span>
+                  <div style={edStyles.toggleRow}>
+                    {(['flat', 'texture'] as const).map(v => {
+                      const useTex = v === 'texture';
+                      const active = (surf.useTexture as boolean) === useTex;
+                      return (
+                        <button key={v} onClick={() => onSurface('gravel', 'useTexture', useTex)}
+                          style={{ ...edStyles.toggleBtn, ...(active ? edStyles.toggleBtnActive : {}) }}>
+                          {v}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+            </React.Fragment>
+          );
+        })}
+      </div>
+
     </div>
   );
 };
@@ -332,6 +396,7 @@ export const StylePanel: React.FC<Props> = ({ stageRef }) => {
     customStyle,
     createCustomStyle,
     updateCustomStyleField,
+    updateCustomStyleSurface,
     meta,
   } = useEditorStore();
 
@@ -474,6 +539,7 @@ export const StylePanel: React.FC<Props> = ({ stageRef }) => {
           <ColorEditor
             style={customStyle}
             onField={(section, key, value) => updateCustomStyleField(section, key, value)}
+            onSurface={(type, key, value) => updateCustomStyleSurface(type, key, value)}
           />
         </div>
       ) : (

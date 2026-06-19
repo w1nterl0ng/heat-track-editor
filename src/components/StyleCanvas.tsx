@@ -3,7 +3,11 @@ import podiumTallUrl from '../assets/podium_tall.png';
 import podiumSquareUrl from '../assets/podium_square.png';
 import weatherHolderUrl from '../assets/weather_holder.png';
 import trackStatsUrl from '../assets/track_stats.png';
-import noSlipFinishUrl from '../assets/no_slip_finish.png';
+import noSlipFinishUrl   from '../assets/no_slip_finish.png';
+import floodedStartUrl  from '../assets/flooded_start.png';
+import floodedMiddleUrl from '../assets/flooded_middle.png';
+import floodedEndUrl    from '../assets/flooded_end.png';
+import gravelTextureUrl from '../assets/gravel_texture.png';
 import { Stage, Layer, Line, Circle, Arc, Rect, Text, Image as KonvaImage, Group } from 'react-konva';
 import Konva from 'konva';
 import { useEditorStore, computeSegments } from '../store/editorStore';
@@ -23,6 +27,7 @@ import {
   buildCountdownMarkers,
   buildSectorCountdownNumbers,
   buildStartingGridRows,
+  buildSurfaceTiles,
   buildPhantomOverlays,
 } from '../lib/trackGeometry';
 import { getStyleById } from '../lib/stylePresets';
@@ -79,7 +84,11 @@ export const StyleCanvas: React.FC<Props> = ({ stageRef }) => {
   const [podiumImg, setPodiumImg] = useState<HTMLImageElement | null>(null);
   const [weatherHolderImg, setWeatherHolderImg] = useState<HTMLImageElement | null>(null);
   const [trackStatsImg, setTrackStatsImg] = useState<HTMLImageElement | null>(null);
-  const [noSlipImg, setNoSlipImg] = useState<HTMLImageElement | null>(null);
+  const [noSlipImg, setNoSlipImg]       = useState<HTMLImageElement | null>(null);
+  const [floodedStartImg, setFloodedStartImg]   = useState<HTMLImageElement | null>(null);
+  const [floodedMiddleImg, setFloodedMiddleImg] = useState<HTMLImageElement | null>(null);
+  const [floodedEndImg, setFloodedEndImg]       = useState<HTMLImageElement | null>(null);
+  const [gravelImg, setGravelImg]               = useState<HTMLImageElement | null>(null);
 
   const isPanning = useRef(false);
   const panStart = useRef<{ mx: number; my: number; px: number; py: number } | null>(null);
@@ -138,6 +147,16 @@ export const StyleCanvas: React.FC<Props> = ({ stageRef }) => {
     const img = new window.Image();
     img.src = noSlipFinishUrl;
     img.onload = () => setNoSlipImg(img);
+  }, []);
+
+  useEffect(() => {
+    const load = (url: string, setter: (img: HTMLImageElement) => void) => {
+      const img = new window.Image(); img.src = url; img.onload = () => setter(img);
+    };
+    load(floodedStartUrl,  setFloodedStartImg);
+    load(floodedMiddleUrl, setFloodedMiddleImg);
+    load(floodedEndUrl,    setFloodedEndImg);
+    load(gravelTextureUrl, setGravelImg);
   }, []);
 
   // ── Geometry (mirrors TrackCanvas useMemo deps) ───────────────────────────
@@ -230,6 +249,16 @@ export const StyleCanvas: React.FC<Props> = ({ stageRef }) => {
   const surfaceOverlays = useMemo(
     () => (samples.length >= 4 ? buildSurfaceOverlays(samples, nodes, SAMPLES_PER_EDGE, halfWidth) : []),
     [samples, nodes, halfWidth],
+  );
+
+  const floodedTiles = useMemo(
+    () => (samples.length >= 4 ? buildSurfaceTiles(samples, nodes, SAMPLES_PER_EDGE, 'flooded') : []),
+    [samples, nodes],
+  );
+
+  const gravelTiles = useMemo(
+    () => (samples.length >= 4 ? buildSurfaceTiles(samples, nodes, SAMPLES_PER_EDGE, 'gravel') : []),
+    [samples, nodes],
   );
 
   // ── Grid lines ────────────────────────────────────────────────────────────
@@ -379,8 +408,22 @@ export const StyleCanvas: React.FC<Props> = ({ stageRef }) => {
       <Layer listening={false}>
         <Group x={panX} y={panY} scaleX={zoom} scaleY={zoom}>
 
-          {/* Surface overlays */}
+          {/* Surface overlays — polygon fallback for tunnel; image tiles for flooded/gravel */}
           {surfaceOverlays.map((ov, i) => {
+            const sf = style.surfaces;
+            const isTunnel  = ov.surfaceType === 'tunnel';
+            const isFlooded = ov.surfaceType === 'flooded';
+            const isGravel  = ov.surfaceType === 'gravel';
+
+            // If hidden, skip
+            if (isTunnel  && !sf.tunnel.visible)  return null;
+            if (isFlooded && !sf.flooded.visible)  return null;
+            if (isGravel  && !sf.gravel.visible)   return null;
+
+            // Flooded with images or gravel with texture → handled below via tiles
+            if (isFlooded && sf.flooded.useImages)  return null;
+            if (isGravel  && sf.gravel.useTexture)  return null;
+
             const cfg = surfaceColor(ov.surfaceType);
             return (
               <Line
@@ -392,6 +435,48 @@ export const StyleCanvas: React.FC<Props> = ({ stageRef }) => {
                 stroke="transparent"
                 strokeWidth={0}
               />
+            );
+          })}
+
+          {/* Flooded image tiles — start / middle / end caps */}
+          {style.surfaces.flooded.visible && style.surfaces.flooded.useImages &&
+           floodedStartImg && floodedMiddleImg && floodedEndImg &&
+           floodedTiles.map((t, i) => {
+            const tileSize = halfWidth * 2;
+            const imgSrc =
+              t.kind === 'start' || t.kind === 'only' ? floodedStartImg :
+              t.kind === 'end'                        ? floodedEndImg   : floodedMiddleImg;
+            return (
+              <Group key={`ft-${i}`} x={t.x} y={t.y} rotation={t.rotation}>
+                <KonvaImage
+                  image={imgSrc}
+                  x={-tileSize / 2}
+                  y={-tileSize / 2}
+                  width={tileSize}
+                  height={tileSize}
+                  opacity={style.surfaces.flooded.opacity}
+                  listening={false}
+                />
+              </Group>
+            );
+          })}
+
+          {/* Gravel texture tiles */}
+          {style.surfaces.gravel.visible && style.surfaces.gravel.useTexture && gravelImg &&
+           gravelTiles.map((t, i) => {
+            const tileSize = halfWidth * 2;
+            return (
+              <Group key={`gt-${i}`} x={t.x} y={t.y} rotation={t.rotation}>
+                <KonvaImage
+                  image={gravelImg}
+                  x={-tileSize / 2}
+                  y={-tileSize / 2}
+                  width={tileSize}
+                  height={tileSize}
+                  opacity={style.surfaces.gravel.opacity}
+                  listening={false}
+                />
+              </Group>
             );
           })}
 
