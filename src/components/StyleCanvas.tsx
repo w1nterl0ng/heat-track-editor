@@ -938,8 +938,8 @@ export const StyleCanvas: React.FC<Props> = ({ stageRef }) => {
           {/* Podium graphic — rendered at rank-1 slot position; only when slots are defined */}
           {podiumImg && podiumSlots.length > 0 && (() => {
             const slot = podiumSlots.find(s => s.rank === 1) ?? podiumSlots[0];
-            // Initial scale: 8× the half-track-width wide; height proportional
-            const imgW = halfWidth * 8;
+            // Initial scale: 8× the half-track-width wide; square is 90% of that
+            const imgW = halfWidth * 8 * (style.lollipops.podiumGraphic === 'square' ? 0.9 : 1.0);
             const imgH = imgW * (podiumImg.naturalHeight / podiumImg.naturalWidth);
             // Offsets so rank-1 box aligns with the placed slot
             const isTall  = style.lollipops.podiumGraphic === 'tall';
