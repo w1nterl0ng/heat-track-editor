@@ -295,7 +295,9 @@ export const StyleCanvas: React.FC<Props> = ({ stageRef }) => {
     return { fill: 'transparent', opacity: 0 };
   }
 
-  const edgeW = (style.track.edgeWidth * 2) / zoom;
+  // World-space edge width — scales with zoom like track body/race line/etc.
+  // Calibrated so appearance matches at zoom=1 (≈ edgeWidth×2 screen px at typical halfWidth).
+  const edgeW = style.track.edgeWidth * halfWidth * 0.018;
 
   // ── Render ────────────────────────────────────────────────────────────────
 
@@ -528,7 +530,7 @@ export const StyleCanvas: React.FC<Props> = ({ stageRef }) => {
             <Line
               points={trackLines.centerPoints}
               stroke={style.track.centerStroke}
-              strokeWidth={style.track.centerLineWidth / zoom}
+              strokeWidth={style.track.centerLineWidth * halfWidth * 0.008}
               lineJoin="round"
               lineCap="round"
               closed
@@ -908,7 +910,7 @@ export const StyleCanvas: React.FC<Props> = ({ stageRef }) => {
           {startingGridRows.map(row => {
             const { rank1, rank2, crossline: cp, tangent: t, normal: n, raceLineSide: rls } = row;
             const color  = style.track.edgeStroke;
-            const sw     = (style.track.edgeWidth * 2.0) / zoom;
+            const sw     = style.track.edgeWidth * halfWidth * 0.018; // world-space, matches edgeW
             const armLen = halfWidth * 0.10; // 5% of ~2*halfWidth space length
             const fs     = halfWidth * 0.38;
 
