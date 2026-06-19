@@ -3,6 +3,7 @@ import podiumTallUrl from '../assets/podium_tall.png';
 import podiumSquareUrl from '../assets/podium_square.png';
 import weatherHolderUrl from '../assets/weather_holder.png';
 import trackStatsUrl from '../assets/track_stats.png';
+import noSlipFinishUrl from '../assets/no_slip_finish.png';
 import { Stage, Layer, Line, Circle, Arc, Rect, Text, Image as KonvaImage, Group } from 'react-konva';
 import Konva from 'konva';
 import { useEditorStore, computeSegments } from '../store/editorStore';
@@ -78,6 +79,7 @@ export const StyleCanvas: React.FC<Props> = ({ stageRef }) => {
   const [podiumImg, setPodiumImg] = useState<HTMLImageElement | null>(null);
   const [weatherHolderImg, setWeatherHolderImg] = useState<HTMLImageElement | null>(null);
   const [trackStatsImg, setTrackStatsImg] = useState<HTMLImageElement | null>(null);
+  const [noSlipImg, setNoSlipImg] = useState<HTMLImageElement | null>(null);
 
   const isPanning = useRef(false);
   const panStart = useRef<{ mx: number; my: number; px: number; py: number } | null>(null);
@@ -130,6 +132,12 @@ export const StyleCanvas: React.FC<Props> = ({ stageRef }) => {
     const img = new window.Image();
     img.src = trackStatsUrl;
     img.onload = () => setTrackStatsImg(img);
+  }, []);
+
+  useEffect(() => {
+    const img = new window.Image();
+    img.src = noSlipFinishUrl;
+    img.onload = () => setNoSlipImg(img);
   }, []);
 
   // ── Geometry (mirrors TrackCanvas useMemo deps) ───────────────────────────
@@ -558,6 +566,37 @@ export const StyleCanvas: React.FC<Props> = ({ stageRef }) => {
               />
             </Group>
           ))}
+
+          {/* No-slip finish graphic — outside track on non-race-line side of finish */}
+          {noSlipImg && finishLine && startingGridRows.length > 0 && (() => {
+            const { inner, outer, center } = finishLine;
+            // Derive unit normal from inner→outer direction
+            const nx = (outer.x - inner.x) / (2 * halfWidth);
+            const ny = (outer.y - inner.y) / (2 * halfWidth);
+            // Tangent: 90° CCW from normal
+            const tx = -ny;
+            const ty =  nx;
+            // Place on the side OPPOSITE to the race line
+            const oppSide = -startingGridRows[0].raceLineSide;
+            const imgW = halfWidth * 3;
+            const imgH = imgW * (noSlipImg.naturalHeight / noSlipImg.naturalWidth);
+            // Center of image: halfWidth * 2 from track center on the opposite side
+            const px = center.x + nx * oppSide * halfWidth * 2;
+            const py = center.y + ny * oppSide * halfWidth * 2;
+            const rotDeg = Math.atan2(ty, tx) * (180 / Math.PI);
+            return (
+              <Group x={px} y={py} rotation={rotDeg}>
+                <KonvaImage
+                  image={noSlipImg}
+                  x={-imgW / 2}
+                  y={-imgH / 2}
+                  width={imgW}
+                  height={imgH}
+                  listening={false}
+                />
+              </Group>
+            );
+          })()}
 
           {/* Finish line + label */}
           {finishLine && (
