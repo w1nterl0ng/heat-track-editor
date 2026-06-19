@@ -984,24 +984,28 @@ export const StyleCanvas: React.FC<Props> = ({ stageRef }) => {
             const xOff = -ww * 0.60;
             const imgLeft = weatherToken.x + xOff;
             const imgTop  = weatherToken.y - wh / 2;
-            const fs = wh * 0.14; // font size relative to card height
+            const fs = wh * 0.28; // doubled font size
+            const cardX = imgLeft + ww * 0.05; // shifted right
+            const cardW = ww * 0.14;
             return (
               <Group>
                 <KonvaImage image={weatherHolderImg} x={imgLeft} y={imgTop} width={ww} height={wh} listening={false} />
                 {/* StartingHeat — orange card (top of left column, ~6–47% height) */}
                 <Text
-                  x={imgLeft + ww * 0.02} y={imgTop + wh * 0.06}
-                  width={ww * 0.17} height={wh * 0.41}
+                  x={cardX} y={imgTop + wh * 0.06}
+                  width={cardW} height={wh * 0.41}
                   text={String(meta.heat)}
-                  fill="#1a1a1a" fontSize={fs} fontStyle="bold"
+                  fill="#ffffff" stroke="#000000" strokeWidth={fs * 0.12}
+                  fontSize={fs} fontStyle="bold"
                   align="center" verticalAlign="middle" listening={false}
                 />
                 {/* StartingStress — yellow card (bottom of left column, ~53–93% height) */}
                 <Text
-                  x={imgLeft + ww * 0.02} y={imgTop + wh * 0.53}
-                  width={ww * 0.17} height={wh * 0.40}
+                  x={cardX} y={imgTop + wh * 0.53}
+                  width={cardW} height={wh * 0.40}
                   text={String(meta.stress)}
-                  fill="#1a1a1a" fontSize={fs} fontStyle="bold"
+                  fill="#ffffff" stroke="#000000" strokeWidth={fs * 0.12}
+                  fontSize={fs} fontStyle="bold"
                   align="center" verticalAlign="middle" listening={false}
                 />
               </Group>
