@@ -236,6 +236,12 @@ interface EditorActions {
   removeWeatherToken(): void;
   updateWeatherTokenPosition(x: number, y: number): void;
   updateWeatherTokenScale(width: number): void;
+  // Track stats box
+  placeTrackStats(): void;
+  removeTrackStats(): void;
+  updateTrackStatsPosition(x: number, y: number): void;
+  updateTrackStatsScale(width: number): void;
+  commitTrackStatsDrag(): void;
   commitWeatherTokenDrag(): void;
 
   // Sector data
@@ -351,6 +357,7 @@ const defaultState: EditorState = {
   conditionMarkers: [],
   podiumSlots: [],
   weatherToken: null,
+  trackStats: null,
   tool: 'layout',
   backbonePhase: 'design',
   designerSegments: [],
@@ -393,6 +400,7 @@ function snapState(s: EditorState): StateSnapshot {
     conditionMarkers: s.conditionMarkers.map(m => ({ ...m })),
     podiumSlots: s.podiumSlots.map(p => ({ ...p })),
     weatherToken: s.weatherToken ? { ...s.weatherToken } : null,
+    trackStats: s.trackStats ? { ...s.trackStats } : null,
     tool: s.tool,
     showGrid: s.showGrid,
     showSpline: s.showSpline,
@@ -842,6 +850,37 @@ export const useEditorStore = create<EditorStore>()(
     },
 
     commitWeatherTokenDrag() {
+      get().snapshot();
+    },
+
+    placeTrackStats() {
+      const s = get();
+      const halfWidth = (s.trackWidthPct / 100) * 2048 / 2;
+      const defaultWidth = halfWidth * 4;
+      const cx = s.canvasWidth  / 2 / s.zoom - s.panX / s.zoom;
+      const cy = s.canvasHeight / 2 / s.zoom - s.panY / s.zoom;
+      get().snapshot();
+      set({ trackStats: { x: cx, y: cy, width: defaultWidth } });
+    },
+
+    removeTrackStats() {
+      get().snapshot();
+      set({ trackStats: null });
+    },
+
+    updateTrackStatsPosition(x, y) {
+      set(s => s.trackStats ? { trackStats: { ...s.trackStats, x, y } } : {});
+    },
+
+    updateTrackStatsScale(width) {
+      const MIN_WIDTH = 50;
+      set(s => s.trackStats
+        ? { trackStats: { ...s.trackStats, width: Math.max(MIN_WIDTH, width) } }
+        : {}
+      );
+    },
+
+    commitTrackStatsDrag() {
       get().snapshot();
     },
 

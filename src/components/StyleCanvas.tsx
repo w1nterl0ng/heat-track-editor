@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import podiumTallUrl from '../assets/podium_tall.png';
 import podiumSquareUrl from '../assets/podium_square.png';
 import weatherHolderUrl from '../assets/weather_holder.png';
+import trackStatsUrl from '../assets/track_stats.png';
 import { Stage, Layer, Line, Circle, Arc, Rect, Text, Image as KonvaImage, Group } from 'react-konva';
 import Konva from 'konva';
 import { useEditorStore, computeSegments } from '../store/editorStore';
@@ -42,6 +43,7 @@ export const StyleCanvas: React.FC<Props> = ({ stageRef }) => {
     conditionMarkers,
     podiumSlots,
     weatherToken,
+    trackStats,
     backgroundImage,
     backgroundOpacity,
     backgroundSize,
@@ -74,6 +76,7 @@ export const StyleCanvas: React.FC<Props> = ({ stageRef }) => {
   const [conditionMarkerImg, setConditionMarkerImg] = useState<HTMLImageElement | null>(null);
   const [podiumImg, setPodiumImg] = useState<HTMLImageElement | null>(null);
   const [weatherHolderImg, setWeatherHolderImg] = useState<HTMLImageElement | null>(null);
+  const [trackStatsImg, setTrackStatsImg] = useState<HTMLImageElement | null>(null);
 
   const isPanning = useRef(false);
   const panStart = useRef<{ mx: number; my: number; px: number; py: number } | null>(null);
@@ -120,6 +123,12 @@ export const StyleCanvas: React.FC<Props> = ({ stageRef }) => {
     const img = new window.Image();
     img.src = weatherHolderUrl;
     img.onload = () => setWeatherHolderImg(img);
+  }, []);
+
+  useEffect(() => {
+    const img = new window.Image();
+    img.src = trackStatsUrl;
+    img.onload = () => setTrackStatsImg(img);
   }, []);
 
   // ── Geometry (mirrors TrackCanvas useMemo deps) ───────────────────────────
@@ -969,14 +978,30 @@ export const StyleCanvas: React.FC<Props> = ({ stageRef }) => {
 
           {/* Weather holder — placed at the weather token position, offset 10% left */}
           {weatherHolderImg && weatherToken && (() => {
-            const ww = weatherToken.width;
+            const ww = weatherToken.width * 1.4;
             const wh = ww * (weatherHolderImg.naturalHeight / weatherHolderImg.naturalWidth);
-            const xOff = -ww * 0.10; // 10% left
+            const xOff = -ww * 0.60; // 10% left
             return (
               <KonvaImage
                 image={weatherHolderImg}
                 x={weatherToken.x + xOff}
                 y={weatherToken.y - wh / 2}
+                width={ww}
+                height={wh}
+                listening={false}
+              />
+            );
+          })()}
+
+          {/* Track stats graphic — placed at trackStats position */}
+          {trackStatsImg && trackStats && (() => {
+            const ww = trackStats.width;
+            const wh = ww * (trackStatsImg.naturalHeight / trackStatsImg.naturalWidth);
+            return (
+              <KonvaImage
+                image={trackStatsImg}
+                x={trackStats.x - ww / 2}
+                y={trackStats.y - wh / 2}
                 width={ww}
                 height={wh}
                 listening={false}

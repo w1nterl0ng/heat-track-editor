@@ -11,6 +11,7 @@ export const ConditionPanel: React.FC = () => {
   const {
     nodes, segmentData, conditionMarkers, generateConditionMarkers,
     weatherToken, placeWeatherToken, removeWeatherToken,
+    trackStats, placeTrackStats, removeTrackStats,
   } = useEditorStore();
 
   const computed = computeSegments(nodes);
@@ -79,6 +80,32 @@ export const ConditionPanel: React.FC = () => {
       ) : (
         <button style={styles.generateBtn} onClick={placeWeatherToken}>
           + Place weather token
+        </button>
+      )}
+
+      {/* Track stats box */}
+      <div style={styles.sectionLabel}>Track Stats</div>
+      {trackStats ? (
+        <div style={styles.weatherBox}>
+          <div style={styles.weatherRow}>
+            <span style={styles.weatherSwatch}>S</span>
+            <span style={styles.weatherCoords}>
+              {trackStats.x.toFixed(0)}, {trackStats.y.toFixed(0)}
+            </span>
+            <span style={styles.weatherSize}>
+              {trackStats.width.toFixed(0)} px
+            </span>
+          </div>
+          <div style={styles.weatherHint}>
+            Drag to move · scroll wheel to scale (Shift = fine)
+          </div>
+          <button style={styles.removeBtn} onClick={removeTrackStats}>
+            ✕ Remove track stats
+          </button>
+        </div>
+      ) : (
+        <button style={styles.generateBtn} onClick={placeTrackStats}>
+          + Place track stats
         </button>
       )}
 

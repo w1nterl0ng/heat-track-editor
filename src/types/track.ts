@@ -53,6 +53,13 @@ export interface WeatherToken {
   width: number;
 }
 
+export interface TrackStats {
+  x: number;
+  y: number;
+  /** Width in world-space pixels. Height = width (1:1 aspect). */
+  width: number;
+}
+
 export type SurfaceType = 'plain' | 'tunnel' | 'flooded' | 'gravel';
 /** Which lateral half of the track the surface covers. Tunnel is always 'both'. */
 export type SurfaceSide = 'both' | 'inside' | 'outside';
@@ -173,6 +180,7 @@ export interface EditorState {
   podiumSlots: PodiumSlot[];
   /** The weather token placed on the board. Null when not yet placed. */
   weatherToken: WeatherToken | null;
+  trackStats: TrackStats | null;
   meta: TrackMeta;
   nodes: TrackNode[];
   /** True once the user has clicked the first node to close the loop. */

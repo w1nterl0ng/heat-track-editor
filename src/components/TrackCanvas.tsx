@@ -87,6 +87,10 @@ export const TrackCanvas: React.FC<Props> = ({ stageRef }) => {
     updatePodiumSlotRotation,
     weatherToken,
     updateWeatherTokenPosition,
+    trackStats,
+    updateTrackStatsPosition,
+    updateTrackStatsScale,
+    commitTrackStatsDrag,
     updateWeatherTokenScale,
     commitWeatherTokenDrag,
     setBackgroundTransform,
@@ -1415,6 +1419,65 @@ export const TrackCanvas: React.FC<Props> = ({ stageRef }) => {
                     x={-W / 2} y={-H / 2}
                     width={W} height={H}
                     text="W"
+                    fill="#94a3b8"
+                    fontSize={H * 0.5}
+                    fontStyle="bold"
+                    align="center"
+                    verticalAlign="middle"
+                    listening={false}
+                  />
+                </Group>
+              );
+            })()}
+
+            {/* Track stats box — same interaction as weather token */}
+            {backbonePhase === 'locked' && showConditionMarkers && trackStats && (() => {
+              const W = trackStats.width;
+              const H = W; // 1:1 aspect
+              const strokeW = Math.max(1 / zoom, W * 0.012);
+              return (
+                <Group
+                  x={trackStats.x}
+                  y={trackStats.y}
+                  draggable={tool === 'condition'}
+                  onDragMove={e => updateTrackStatsPosition(e.target.x(), e.target.y())}
+                  onDragEnd={e => {
+                    updateTrackStatsPosition(e.target.x(), e.target.y());
+                    commitTrackStatsDrag();
+                  }}
+                  onWheel={tool === 'condition' ? e => {
+                    e.evt.preventDefault();
+                    e.evt.stopPropagation();
+                    e.cancelBubble = true;
+                    const scrollValue = e.evt.deltaY !== 0 ? e.evt.deltaY : e.evt.deltaX;
+                    const factor = e.evt.shiftKey ? 0.01 : 0.05;
+                    const delta = scrollValue > 0 ? -factor : factor;
+                    updateTrackStatsScale(trackStats.width * (1 + delta));
+                    if (scaleCommitTimerRef.current) clearTimeout(scaleCommitTimerRef.current);
+                    scaleCommitTimerRef.current = setTimeout(() => commitTrackStatsDrag(), 600);
+                  } : undefined}
+                >
+                  <Rect
+                    x={-W / 2} y={-H / 2}
+                    width={W} height={H}
+                    fill="#334155"
+                    stroke="#94a3b8"
+                    strokeWidth={strokeW}
+                    cornerRadius={W * 0.03}
+                  />
+                  <Rect
+                    x={-W / 2 + strokeW * 2} y={-H / 2 + strokeW * 2}
+                    width={W - strokeW * 4} height={H - strokeW * 4}
+                    fill="transparent"
+                    stroke="#64748b"
+                    strokeWidth={strokeW * 0.6}
+                    cornerRadius={W * 0.02}
+                    listening={false}
+                  />
+                  <Text
+                    x={-W / 2} y={-H / 2}
+                    width={W} height={H}
+                    text="S"
                     fill="#94a3b8"
                     fontSize={H * 0.5}
                     fontStyle="bold"
