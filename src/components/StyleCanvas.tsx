@@ -456,9 +456,16 @@ export const StyleCanvas: React.FC<Props> = ({ stageRef }) => {
                 const minY = Math.min(...ys), maxY = Math.max(...ys);
 
                 return (
-                  <Group
-                    key={`ft-${i}`}
-                    clipFunc={ctx => {
+                  <React.Fragment key={`ft-${i}`}>
+                    {/* Debug: bounding box used to position the image */}
+                    <Rect
+                      x={minX} y={minY}
+                      width={maxX - minX} height={maxY - minY}
+                      stroke="#ff0000" strokeWidth={2 / zoom} fill="transparent"
+                      listening={false}
+                    />
+                    <Group
+                      clipFunc={ctx => {
                       ctx.beginPath();
                       ctx.moveTo(ov.points[0], ov.points[1]);
                       for (let j = 2; j < ov.points.length; j += 2)
@@ -476,6 +483,7 @@ export const StyleCanvas: React.FC<Props> = ({ stageRef }) => {
                       listening={false}
                     />
                   </Group>
+                  </React.Fragment>
                 );
               });
           })()}
