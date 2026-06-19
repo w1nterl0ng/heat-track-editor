@@ -4,10 +4,6 @@ import podiumSquareUrl from '../assets/podium_square.png';
 import weatherHolderUrl from '../assets/weather_holder.png';
 import trackStatsUrl from '../assets/track_stats.png';
 import noSlipFinishUrl   from '../assets/no_slip_finish.png';
-import floodedStartUrl  from '../assets/flooded_start.png';
-import floodedMiddleUrl from '../assets/flooded_middle.png';
-import floodedEndUrl    from '../assets/flooded_end.png';
-import gravelTextureUrl from '../assets/gravel_texture.png';
 import { Stage, Layer, Line, Circle, Arc, Rect, Text, Image as KonvaImage, Group } from 'react-konva';
 import Konva from 'konva';
 import { useEditorStore, computeSegments } from '../store/editorStore';
@@ -27,7 +23,6 @@ import {
   buildCountdownMarkers,
   buildSectorCountdownNumbers,
   buildStartingGridRows,
-  buildSurfaceTiles,
   buildPhantomOverlays,
 } from '../lib/trackGeometry';
 import { getStyleById } from '../lib/stylePresets';
@@ -84,11 +79,7 @@ export const StyleCanvas: React.FC<Props> = ({ stageRef }) => {
   const [podiumImg, setPodiumImg] = useState<HTMLImageElement | null>(null);
   const [weatherHolderImg, setWeatherHolderImg] = useState<HTMLImageElement | null>(null);
   const [trackStatsImg, setTrackStatsImg] = useState<HTMLImageElement | null>(null);
-  const [noSlipImg, setNoSlipImg]       = useState<HTMLImageElement | null>(null);
-  const [floodedStartImg, setFloodedStartImg]   = useState<HTMLImageElement | null>(null);
-  const [floodedMiddleImg, setFloodedMiddleImg] = useState<HTMLImageElement | null>(null);
-  const [floodedEndImg, setFloodedEndImg]       = useState<HTMLImageElement | null>(null);
-  const [gravelImg, setGravelImg]               = useState<HTMLImageElement | null>(null);
+  const [noSlipImg, setNoSlipImg] = useState<HTMLImageElement | null>(null);
 
   const isPanning = useRef(false);
   const panStart = useRef<{ mx: number; my: number; px: number; py: number } | null>(null);
@@ -147,16 +138,6 @@ export const StyleCanvas: React.FC<Props> = ({ stageRef }) => {
     const img = new window.Image();
     img.src = noSlipFinishUrl;
     img.onload = () => setNoSlipImg(img);
-  }, []);
-
-  useEffect(() => {
-    const load = (url: string, setter: (img: HTMLImageElement) => void) => {
-      const img = new window.Image(); img.src = url; img.onload = () => setter(img);
-    };
-    load(floodedStartUrl,  setFloodedStartImg);
-    load(floodedMiddleUrl, setFloodedMiddleImg);
-    load(floodedEndUrl,    setFloodedEndImg);
-    load(gravelTextureUrl, setGravelImg);
   }, []);
 
   // ── Geometry (mirrors TrackCanvas useMemo deps) ───────────────────────────
@@ -249,11 +230,6 @@ export const StyleCanvas: React.FC<Props> = ({ stageRef }) => {
   const surfaceOverlays = useMemo(
     () => (samples.length >= 4 ? buildSurfaceOverlays(samples, nodes, SAMPLES_PER_EDGE, halfWidth) : []),
     [samples, nodes, halfWidth],
-  );
-
-  const floodedTiles = useMemo(
-    () => (samples.length >= 4 ? buildSurfaceTiles(samples, nodes, SAMPLES_PER_EDGE, 'flooded') : []),
-    [samples, nodes],
   );
 
   // gravelTiles: kept for future per-tile metadata; currently gravel uses surfaceOverlays polygons directly
@@ -406,22 +382,12 @@ export const StyleCanvas: React.FC<Props> = ({ stageRef }) => {
       <Layer listening={false}>
         <Group x={panX} y={panY} scaleX={zoom} scaleY={zoom}>
 
-          {/* Surface overlays — polygon fallback for tunnel; image tiles for flooded/gravel */}
+          {/* Surface overlays — color polygons; visible toggle respected per type */}
           {surfaceOverlays.map((ov, i) => {
             const sf = style.surfaces;
-            const isTunnel  = ov.surfaceType === 'tunnel';
-            const isFlooded = ov.surfaceType === 'flooded';
-            const isGravel  = ov.surfaceType === 'gravel';
-
-            // If hidden, skip
-            if (isTunnel  && !sf.tunnel.visible)  return null;
-            if (isFlooded && !sf.flooded.visible)  return null;
-            if (isGravel  && !sf.gravel.visible)   return null;
-
-            // Flooded with images or gravel with texture → handled below via tiles
-            if (isFlooded && sf.flooded.useImages)  return null;
-            if (isGravel  && sf.gravel.useTexture)  return null;
-
+            if (ov.surfaceType === 'tunnel'  && !sf.tunnel.visible)  return null;
+            if (ov.surfaceType === 'flooded' && !sf.flooded.visible) return null;
+            if (ov.surfaceType === 'gravel'  && !sf.gravel.visible)  return null;
             const cfg = surfaceColor(ov.surfaceType);
             return (
               <Line
@@ -435,112 +401,6 @@ export const StyleCanvas: React.FC<Props> = ({ stageRef }) => {
               />
             );
           })}
-
-          {/* Flooded image tiles — clipped to the polygon so they bend and stretch with the track */}
-          {style.surfaces.flooded.visible && style.surfaces.flooded.useImages &&
-           floodedStartImg && floodedMiddleImg && floodedEndImg && (() => {
-            const tileByNodeId = new Map(floodedTiles.map(t => [t.nodeId, t]));
-            return surfaceOverlays
-              .filter(ov => ov.surfaceType === 'flooded')
-              .map((ov, i) => {
-                const tile = tileByNodeId.get(ov.nodeId);
-                const kind = tile?.kind ?? 'middle';
-                const img  =
-                  kind === 'start' ? floodedStartImg :
-                  kind === 'end'   ? floodedEndImg   : floodedMiddleImg;
-
-                // Rotation origin: spline midpoint of this space
-                const cx     = tile?.x ?? ov.points.filter((_, j) => j % 2 === 0).reduce((a, b) => a + b, 0) / (ov.points.length / 2);
-                const cy     = tile?.y ?? ov.points.filter((_, j) => j % 2 === 1).reduce((a, b) => a + b, 0) / (ov.points.length / 2);
-                const rotDeg = tile?.rotation ?? 0;
-                const cos    = Math.cos(-rotDeg * Math.PI / 180);
-                const sin    = Math.sin(-rotDeg * Math.PI / 180);
-
-                // Rotate polygon into local frame to get a tight bounding box
-                const localPts: number[] = [];
-                for (let j = 0; j < ov.points.length; j += 2) {
-                  const wx = ov.points[j] - cx, wy = ov.points[j + 1] - cy;
-                  localPts.push(wx * cos - wy * sin, wx * sin + wy * cos);
-                }
-                const lxs = localPts.filter((_, j) => j % 2 === 0);
-                const lys = localPts.filter((_, j) => j % 2 === 1);
-                const lMinX = Math.min(...lxs), lMaxX = Math.max(...lxs);
-                const lMinY = Math.min(...lys), lMaxY = Math.max(...lys);
-
-                return (
-                  <Group
-                    key={`ft-${i}`}
-                    x={cx} y={cy} rotation={rotDeg}
-                    clipFunc={ctx => {
-                      // clipFunc uses parent (world) coordinates
-                      ctx.beginPath();
-                      ctx.moveTo(ov.points[0], ov.points[1]);
-                      for (let j = 2; j < ov.points.length; j += 2)
-                        ctx.lineTo(ov.points[j], ov.points[j + 1]);
-                      ctx.closePath();
-                    }}
-                    listening={false}
-                  >
-                    <KonvaImage
-                      image={img}
-                      x={lMinX} y={lMinY}
-                      width={lMaxX - lMinX}
-                      height={lMaxY - lMinY}
-                      opacity={style.surfaces.flooded.opacity}
-                      listening={false}
-                    />
-                  </Group>
-                );
-              });
-          })()}
-
-          {/* Gravel texture tiles — same local-frame approach */}
-          {style.surfaces.gravel.visible && style.surfaces.gravel.useTexture && gravelImg && (() => {
-            return surfaceOverlays
-              .filter(ov => ov.surfaceType === 'gravel')
-              .map((ov, i) => {
-                const xs = ov.points.filter((_, j) => j % 2 === 0);
-                const ys = ov.points.filter((_, j) => j % 2 === 1);
-                const cx = xs.reduce((a, b) => a + b, 0) / xs.length;
-                const cy = ys.reduce((a, b) => a + b, 0) / ys.length;
-                // Estimate tangent from polygon points (first edge direction)
-                const rotDeg = Math.atan2(ov.points[3] - ov.points[1], ov.points[2] - ov.points[0]) * (180 / Math.PI);
-                const cos = Math.cos(-rotDeg * Math.PI / 180);
-                const sin = Math.sin(-rotDeg * Math.PI / 180);
-                const localPts: number[] = [];
-                for (let j = 0; j < ov.points.length; j += 2) {
-                  const wx = ov.points[j] - cx, wy = ov.points[j + 1] - cy;
-                  localPts.push(wx * cos - wy * sin, wx * sin + wy * cos);
-                }
-                const lxs = localPts.filter((_, j) => j % 2 === 0);
-                const lys = localPts.filter((_, j) => j % 2 === 1);
-                const lMinX = Math.min(...lxs), lMaxX = Math.max(...lxs);
-                const lMinY = Math.min(...lys), lMaxY = Math.max(...lys);
-                return (
-                  <Group
-                    key={`gt-${i}`}
-                    x={cx} y={cy} rotation={rotDeg}
-                    clipFunc={ctx => {
-                      ctx.beginPath();
-                      ctx.moveTo(ov.points[0], ov.points[1]);
-                      for (let j = 2; j < ov.points.length; j += 2)
-                        ctx.lineTo(ov.points[j], ov.points[j + 1]);
-                      ctx.closePath();
-                    }}
-                    listening={false}
-                  >
-                    <KonvaImage
-                      image={gravelImg}
-                      x={lMinX} y={lMinY}
-                      width={lMaxX - lMinX}
-                      height={lMaxY - lMinY}
-                      opacity={style.surfaces.gravel.opacity}
-                      listening={false}
-                    />
-                  </Group>
-                );
-              });
-          })()}
 
           {/* Phantom (bridge crossing) overlays */}
           {phantomOverlays.map((ov, i) => (
