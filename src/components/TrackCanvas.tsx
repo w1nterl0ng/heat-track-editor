@@ -1433,7 +1433,7 @@ export const TrackCanvas: React.FC<Props> = ({ stageRef }) => {
             {/* Track stats box — same interaction as weather token */}
             {backbonePhase === 'locked' && showConditionMarkers && trackStats && (() => {
               const W = trackStats.width;
-              const H = W; // 1:1 aspect
+              const H = W * (282 / 979); // matches track_stats.png aspect ratio
               const strokeW = Math.max(1 / zoom, W * 0.012);
               return (
                 <Group
