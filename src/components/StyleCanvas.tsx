@@ -439,33 +439,40 @@ export const StyleCanvas: React.FC<Props> = ({ stageRef }) => {
           {/* Flooded image tiles — clipped to the polygon so they bend and stretch with the track */}
           {style.surfaces.flooded.visible && style.surfaces.flooded.useImages &&
            floodedStartImg && floodedMiddleImg && floodedEndImg && (() => {
-            // Build a nodeId → kind lookup from the tile metadata
-            const kindMap = new Map(floodedTiles.map(t => [t.nodeId, t.kind]));
+            const tileByNodeId = new Map(floodedTiles.map(t => [t.nodeId, t]));
             return surfaceOverlays
               .filter(ov => ov.surfaceType === 'flooded')
               .map((ov, i) => {
-                const kind = kindMap.get(ov.nodeId) ?? 'middle';
+                const tile = tileByNodeId.get(ov.nodeId);
+                const kind = tile?.kind ?? 'middle';
                 const img  =
                   kind === 'start' ? floodedStartImg :
                   kind === 'end'   ? floodedEndImg   : floodedMiddleImg;
 
-                // Bounding box of the polygon (world coords)
-                const xs = ov.points.filter((_, j) => j % 2 === 0);
-                const ys = ov.points.filter((_, j) => j % 2 === 1);
-                const minX = Math.min(...xs), maxX = Math.max(...xs);
-                const minY = Math.min(...ys), maxY = Math.max(...ys);
+                // Rotation origin: spline midpoint of this space
+                const cx     = tile?.x ?? ov.points.filter((_, j) => j % 2 === 0).reduce((a, b) => a + b, 0) / (ov.points.length / 2);
+                const cy     = tile?.y ?? ov.points.filter((_, j) => j % 2 === 1).reduce((a, b) => a + b, 0) / (ov.points.length / 2);
+                const rotDeg = tile?.rotation ?? 0;
+                const cos    = Math.cos(-rotDeg * Math.PI / 180);
+                const sin    = Math.sin(-rotDeg * Math.PI / 180);
+
+                // Rotate polygon into local frame to get a tight bounding box
+                const localPts: number[] = [];
+                for (let j = 0; j < ov.points.length; j += 2) {
+                  const wx = ov.points[j] - cx, wy = ov.points[j + 1] - cy;
+                  localPts.push(wx * cos - wy * sin, wx * sin + wy * cos);
+                }
+                const lxs = localPts.filter((_, j) => j % 2 === 0);
+                const lys = localPts.filter((_, j) => j % 2 === 1);
+                const lMinX = Math.min(...lxs), lMaxX = Math.max(...lxs);
+                const lMinY = Math.min(...lys), lMaxY = Math.max(...lys);
 
                 return (
-                  <React.Fragment key={`ft-${i}`}>
-                    {/* Debug: bounding box used to position the image */}
-                    <Rect
-                      x={minX} y={minY}
-                      width={maxX - minX} height={maxY - minY}
-                      stroke="#ff0000" strokeWidth={2 / zoom} fill="transparent"
-                      listening={false}
-                    />
-                    <Group
-                      clipFunc={ctx => {
+                  <Group
+                    key={`ft-${i}`}
+                    x={cx} y={cy} rotation={rotDeg}
+                    clipFunc={ctx => {
+                      // clipFunc uses parent (world) coordinates
                       ctx.beginPath();
                       ctx.moveTo(ov.points[0], ov.points[1]);
                       for (let j = 2; j < ov.points.length; j += 2)
@@ -476,30 +483,43 @@ export const StyleCanvas: React.FC<Props> = ({ stageRef }) => {
                   >
                     <KonvaImage
                       image={img}
-                      x={minX} y={minY}
-                      width={maxX - minX}
-                      height={maxY - minY}
+                      x={lMinX} y={lMinY}
+                      width={lMaxX - lMinX}
+                      height={lMaxY - lMinY}
                       opacity={style.surfaces.flooded.opacity}
                       listening={false}
                     />
                   </Group>
-                  </React.Fragment>
                 );
               });
           })()}
 
-          {/* Gravel texture tiles — same polygon-clip approach */}
+          {/* Gravel texture tiles — same local-frame approach */}
           {style.surfaces.gravel.visible && style.surfaces.gravel.useTexture && gravelImg && (() => {
             return surfaceOverlays
               .filter(ov => ov.surfaceType === 'gravel')
               .map((ov, i) => {
                 const xs = ov.points.filter((_, j) => j % 2 === 0);
                 const ys = ov.points.filter((_, j) => j % 2 === 1);
-                const minX = Math.min(...xs), maxX = Math.max(...xs);
-                const minY = Math.min(...ys), maxY = Math.max(...ys);
+                const cx = xs.reduce((a, b) => a + b, 0) / xs.length;
+                const cy = ys.reduce((a, b) => a + b, 0) / ys.length;
+                // Estimate tangent from polygon points (first edge direction)
+                const rotDeg = Math.atan2(ov.points[3] - ov.points[1], ov.points[2] - ov.points[0]) * (180 / Math.PI);
+                const cos = Math.cos(-rotDeg * Math.PI / 180);
+                const sin = Math.sin(-rotDeg * Math.PI / 180);
+                const localPts: number[] = [];
+                for (let j = 0; j < ov.points.length; j += 2) {
+                  const wx = ov.points[j] - cx, wy = ov.points[j + 1] - cy;
+                  localPts.push(wx * cos - wy * sin, wx * sin + wy * cos);
+                }
+                const lxs = localPts.filter((_, j) => j % 2 === 0);
+                const lys = localPts.filter((_, j) => j % 2 === 1);
+                const lMinX = Math.min(...lxs), lMaxX = Math.max(...lxs);
+                const lMinY = Math.min(...lys), lMaxY = Math.max(...lys);
                 return (
                   <Group
                     key={`gt-${i}`}
+                    x={cx} y={cy} rotation={rotDeg}
                     clipFunc={ctx => {
                       ctx.beginPath();
                       ctx.moveTo(ov.points[0], ov.points[1]);
@@ -511,9 +531,9 @@ export const StyleCanvas: React.FC<Props> = ({ stageRef }) => {
                   >
                     <KonvaImage
                       image={gravelImg}
-                      x={minX} y={minY}
-                      width={maxX - minX}
-                      height={maxY - minY}
+                      x={lMinX} y={lMinY}
+                      width={lMaxX - lMinX}
+                      height={lMaxY - lMinY}
                       opacity={style.surfaces.gravel.opacity}
                       listening={false}
                     />
