@@ -256,10 +256,8 @@ export const StyleCanvas: React.FC<Props> = ({ stageRef }) => {
     [samples, nodes],
   );
 
-  const gravelTiles = useMemo(
-    () => (samples.length >= 4 ? buildSurfaceTiles(samples, nodes, SAMPLES_PER_EDGE, 'gravel') : []),
-    [samples, nodes],
-  );
+  // gravelTiles: kept for future per-tile metadata; currently gravel uses surfaceOverlays polygons directly
+  // const gravelTiles = ...
 
   // ── Grid lines ────────────────────────────────────────────────────────────
 
@@ -438,47 +436,83 @@ export const StyleCanvas: React.FC<Props> = ({ stageRef }) => {
             );
           })}
 
-          {/* Flooded image tiles — start / middle / end caps */}
+          {/* Flooded image tiles — clipped to the polygon so they bend and stretch with the track */}
           {style.surfaces.flooded.visible && style.surfaces.flooded.useImages &&
-           floodedStartImg && floodedMiddleImg && floodedEndImg &&
-           floodedTiles.map((t, i) => {
-            const tileSize = halfWidth * 2;
-            const imgSrc =
-              t.kind === 'start' || t.kind === 'only' ? floodedStartImg :
-              t.kind === 'end'                        ? floodedEndImg   : floodedMiddleImg;
-            return (
-              <Group key={`ft-${i}`} x={t.x} y={t.y} rotation={t.rotation}>
-                <KonvaImage
-                  image={imgSrc}
-                  x={-tileSize / 2}
-                  y={-tileSize / 2}
-                  width={tileSize}
-                  height={tileSize}
-                  opacity={style.surfaces.flooded.opacity}
-                  listening={false}
-                />
-              </Group>
-            );
-          })}
+           floodedStartImg && floodedMiddleImg && floodedEndImg && (() => {
+            // Build a nodeId → kind lookup from the tile metadata
+            const kindMap = new Map(floodedTiles.map(t => [t.nodeId, t.kind]));
+            return surfaceOverlays
+              .filter(ov => ov.surfaceType === 'flooded')
+              .map((ov, i) => {
+                const kind = kindMap.get(ov.nodeId) ?? 'middle';
+                const img  =
+                  kind === 'start' ? floodedStartImg :
+                  kind === 'end'   ? floodedEndImg   : floodedMiddleImg;
 
-          {/* Gravel texture tiles */}
-          {style.surfaces.gravel.visible && style.surfaces.gravel.useTexture && gravelImg &&
-           gravelTiles.map((t, i) => {
-            const tileSize = halfWidth * 2;
-            return (
-              <Group key={`gt-${i}`} x={t.x} y={t.y} rotation={t.rotation}>
-                <KonvaImage
-                  image={gravelImg}
-                  x={-tileSize / 2}
-                  y={-tileSize / 2}
-                  width={tileSize}
-                  height={tileSize}
-                  opacity={style.surfaces.gravel.opacity}
-                  listening={false}
-                />
-              </Group>
-            );
-          })}
+                // Bounding box of the polygon (world coords)
+                const xs = ov.points.filter((_, j) => j % 2 === 0);
+                const ys = ov.points.filter((_, j) => j % 2 === 1);
+                const minX = Math.min(...xs), maxX = Math.max(...xs);
+                const minY = Math.min(...ys), maxY = Math.max(...ys);
+
+                return (
+                  <Group
+                    key={`ft-${i}`}
+                    clipFunc={ctx => {
+                      ctx.beginPath();
+                      ctx.moveTo(ov.points[0], ov.points[1]);
+                      for (let j = 2; j < ov.points.length; j += 2)
+                        ctx.lineTo(ov.points[j], ov.points[j + 1]);
+                      ctx.closePath();
+                    }}
+                    listening={false}
+                  >
+                    <KonvaImage
+                      image={img}
+                      x={minX} y={minY}
+                      width={maxX - minX}
+                      height={maxY - minY}
+                      opacity={style.surfaces.flooded.opacity}
+                      listening={false}
+                    />
+                  </Group>
+                );
+              });
+          })()}
+
+          {/* Gravel texture tiles — same polygon-clip approach */}
+          {style.surfaces.gravel.visible && style.surfaces.gravel.useTexture && gravelImg && (() => {
+            return surfaceOverlays
+              .filter(ov => ov.surfaceType === 'gravel')
+              .map((ov, i) => {
+                const xs = ov.points.filter((_, j) => j % 2 === 0);
+                const ys = ov.points.filter((_, j) => j % 2 === 1);
+                const minX = Math.min(...xs), maxX = Math.max(...xs);
+                const minY = Math.min(...ys), maxY = Math.max(...ys);
+                return (
+                  <Group
+                    key={`gt-${i}`}
+                    clipFunc={ctx => {
+                      ctx.beginPath();
+                      ctx.moveTo(ov.points[0], ov.points[1]);
+                      for (let j = 2; j < ov.points.length; j += 2)
+                        ctx.lineTo(ov.points[j], ov.points[j + 1]);
+                      ctx.closePath();
+                    }}
+                    listening={false}
+                  >
+                    <KonvaImage
+                      image={gravelImg}
+                      x={minX} y={minY}
+                      width={maxX - minX}
+                      height={maxY - minY}
+                      opacity={style.surfaces.gravel.opacity}
+                      listening={false}
+                    />
+                  </Group>
+                );
+              });
+          })()}
 
           {/* Phantom (bridge crossing) overlays */}
           {phantomOverlays.map((ov, i) => (

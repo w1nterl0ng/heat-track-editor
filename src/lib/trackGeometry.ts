@@ -834,6 +834,7 @@ export interface SurfaceTile {
   /** Position within its contiguous section. */
   kind: 'start' | 'middle' | 'end' | 'only';
   side: SurfaceSide;
+  nodeId: string;
 }
 
 /**
@@ -890,6 +891,7 @@ export function buildSurfaceTiles(
         rotation: Math.atan2(s.tangent.y, s.tangent.x) * (180 / Math.PI),
         kind,
         side,
+        nodeId: nd.id,
       });
     }
   }
