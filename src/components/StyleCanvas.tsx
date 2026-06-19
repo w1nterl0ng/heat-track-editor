@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import podiumTallUrl from '../assets/podium_tall.png';
 import podiumSquareUrl from '../assets/podium_square.png';
+import weatherHolderUrl from '../assets/weather_holder.png';
 import { Stage, Layer, Line, Circle, Arc, Rect, Text, Image as KonvaImage, Group } from 'react-konva';
 import Konva from 'konva';
 import { useEditorStore, computeSegments } from '../store/editorStore';
@@ -40,6 +41,7 @@ export const StyleCanvas: React.FC<Props> = ({ stageRef }) => {
     segmentData,
     conditionMarkers,
     podiumSlots,
+    weatherToken,
     backgroundImage,
     backgroundOpacity,
     backgroundSize,
@@ -71,6 +73,7 @@ export const StyleCanvas: React.FC<Props> = ({ stageRef }) => {
   const [legendsMarkerImg, setLegendsMarkerImg] = useState<HTMLImageElement | null>(null);
   const [conditionMarkerImg, setConditionMarkerImg] = useState<HTMLImageElement | null>(null);
   const [podiumImg, setPodiumImg] = useState<HTMLImageElement | null>(null);
+  const [weatherHolderImg, setWeatherHolderImg] = useState<HTMLImageElement | null>(null);
 
   const isPanning = useRef(false);
   const panStart = useRef<{ mx: number; my: number; px: number; py: number } | null>(null);
@@ -112,6 +115,12 @@ export const StyleCanvas: React.FC<Props> = ({ stageRef }) => {
     img.src = src;
     img.onload = () => setPodiumImg(img);
   }, [style.lollipops.podiumGraphic]);
+
+  useEffect(() => {
+    const img = new window.Image();
+    img.src = weatherHolderUrl;
+    img.onload = () => setWeatherHolderImg(img);
+  }, []);
 
   // ── Geometry (mirrors TrackCanvas useMemo deps) ───────────────────────────
 
@@ -944,7 +953,7 @@ export const StyleCanvas: React.FC<Props> = ({ stageRef }) => {
             // Offsets so rank-1 box aligns with the placed slot
             const isTall  = style.lollipops.podiumGraphic === 'tall';
             const xOff = isTall ? 0          : imgW * 0.30;
-            const yOff = isTall ? imgH * 0.35 : imgH * 0.10;
+            const yOff = isTall ? imgH * 0.35 : imgH * 0.25;
             return (
               <Group x={slot.x} y={slot.y} rotation={slot.rotation}>
                 <KonvaImage
@@ -955,6 +964,23 @@ export const StyleCanvas: React.FC<Props> = ({ stageRef }) => {
                   height={imgH}
                 />
               </Group>
+            );
+          })()}
+
+          {/* Weather holder — placed at the weather token position, offset 10% left */}
+          {weatherHolderImg && weatherToken && (() => {
+            const ww = weatherToken.width;
+            const wh = ww * (weatherHolderImg.naturalHeight / weatherHolderImg.naturalWidth);
+            const xOff = -ww * 0.10; // 10% left
+            return (
+              <KonvaImage
+                image={weatherHolderImg}
+                x={weatherToken.x + xOff}
+                y={weatherToken.y - wh / 2}
+                width={ww}
+                height={wh}
+                listening={false}
+              />
             );
           })()}
 
