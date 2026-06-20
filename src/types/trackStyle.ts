@@ -83,14 +83,8 @@ export interface TrackStyleSurface {
 
 export interface TrackStyleSurfaces {
   tunnel:  TrackStyleSurface;
-  flooded: TrackStyleSurface & {
-    /** Render with start/middle/end images instead of a flat color. */
-    useImages: boolean;
-  };
-  gravel:  TrackStyleSurface & {
-    /** Render with tiled gravel texture instead of a flat color. */
-    useTexture: boolean;
-  };
+  flooded: TrackStyleSurface;
+  gravel:  TrackStyleSurface;
 }
 
 export interface TrackStyle {

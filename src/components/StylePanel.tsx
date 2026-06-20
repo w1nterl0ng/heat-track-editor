@@ -300,40 +300,6 @@ const ColorEditor: React.FC<ColorEditorProps> = ({ style: s, onField, onSurface 
               </div>
               <ColorField  label="Fill"    value={surf.fill    as string} onChange={v => onSurface(type, 'fill', v)} />
               <NumberField label="Opacity" value={surf.opacity as number} min={0} max={1} step={0.05} onChange={v => onSurface(type, 'opacity', v)} />
-              {type === 'flooded' && (
-                <div style={cfStyles.row}>
-                  <span style={cfStyles.label}>Style</span>
-                  <div style={edStyles.toggleRow}>
-                    {(['flat', 'images'] as const).map(v => {
-                      const useImg = v === 'images';
-                      const active = (surf.useImages as boolean) === useImg;
-                      return (
-                        <button key={v} onClick={() => onSurface('flooded', 'useImages', useImg)}
-                          style={{ ...edStyles.toggleBtn, ...(active ? edStyles.toggleBtnActive : {}) }}>
-                          {v}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
-              {type === 'gravel' && (
-                <div style={cfStyles.row}>
-                  <span style={cfStyles.label}>Style</span>
-                  <div style={edStyles.toggleRow}>
-                    {(['flat', 'texture'] as const).map(v => {
-                      const useTex = v === 'texture';
-                      const active = (surf.useTexture as boolean) === useTex;
-                      return (
-                        <button key={v} onClick={() => onSurface('gravel', 'useTexture', useTex)}
-                          style={{ ...edStyles.toggleBtn, ...(active ? edStyles.toggleBtnActive : {}) }}>
-                          {v}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
             </React.Fragment>
           );
         })}
