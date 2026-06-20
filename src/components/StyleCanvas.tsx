@@ -207,6 +207,26 @@ export const StyleCanvas: React.FC<Props> = ({ stageRef }) => {
     [samples, nodes, halfWidth],
   );
 
+  // Center line split into segments that skip phantom spaces
+  const centerLineSegments = useMemo((): number[][] => {
+    if (samples.length < 4) return [];
+    const segments: number[][] = [];
+    let current: number[] = [];
+    for (let ni = 0; ni < nodes.length; ni++) {
+      if (nodes[ni].isPhantom) {
+        if (current.length >= 4) segments.push(current);
+        current = [];
+      } else {
+        for (let k = 0; k < SAMPLES_PER_EDGE; k++) {
+          const s = samples[(ni * SAMPLES_PER_EDGE + k) % samples.length];
+          current.push(s.point.x, s.point.y);
+        }
+      }
+    }
+    if (current.length >= 4) segments.push(current);
+    return segments;
+  }, [samples, nodes]);
+
   const raceLineArcs = useMemo(
     () => (samples.length >= 4 ? buildRaceLineArcs(samples, nodes, SAMPLES_PER_EDGE, segmentData, halfWidth) : []),
     [samples, nodes, segmentData, halfWidth],
@@ -553,18 +573,18 @@ export const StyleCanvas: React.FC<Props> = ({ stageRef }) => {
           })}
 
           {/* Optional dashed center line */}
-          {style.track.showCenterLine && trackLines && (
+          {style.track.showCenterLine && centerLineSegments.map((pts, i) => (
             <Line
-              points={trackLines.centerPoints}
+              key={`cl-${i}`}
+              points={pts}
               stroke={style.track.centerStroke}
               strokeWidth={style.track.centerLineWidth * halfWidth * 0.008}
               lineJoin="round"
               lineCap="round"
-              closed
               dash={[style.track.centerDash[0] / zoom, style.track.centerDash[1] / zoom]}
               opacity={0.55}
             />
-          )}
+          ))}
 
           {/* Corner lines + labels */}
           {cornerLines.map((cl, idx) => (
