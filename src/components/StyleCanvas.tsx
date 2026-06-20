@@ -227,6 +227,27 @@ export const StyleCanvas: React.FC<Props> = ({ stageRef }) => {
     return segments;
   }, [samples, nodes]);
 
+  // Edge lines (inner + outer) split into segments that skip phantom spaces
+  const edgeLineSegments = useMemo((): { inner: number[][]; outer: number[][] } => {
+    if (samples.length < 4) return { inner: [], outer: [] };
+    const inner: number[][] = [], outer: number[][] = [];
+    let ci: number[] = [], co: number[] = [];
+    for (let ni = 0; ni < nodes.length; ni++) {
+      if (nodes[ni].isPhantom) {
+        if (ci.length >= 4) { inner.push(ci); outer.push(co); }
+        ci = []; co = [];
+      } else {
+        for (let k = 0; k < SAMPLES_PER_EDGE; k++) {
+          const s = samples[(ni * SAMPLES_PER_EDGE + k) % samples.length];
+          ci.push(s.point.x - s.normal.x * halfWidth, s.point.y - s.normal.y * halfWidth);
+          co.push(s.point.x + s.normal.x * halfWidth, s.point.y + s.normal.y * halfWidth);
+        }
+      }
+    }
+    if (ci.length >= 4) { inner.push(ci); outer.push(co); }
+    return { inner, outer };
+  }, [samples, nodes, halfWidth]);
+
   const raceLineArcs = useMemo(
     () => (samples.length >= 4 ? buildRaceLineArcs(samples, nodes, SAMPLES_PER_EDGE, segmentData, halfWidth) : []),
     [samples, nodes, segmentData, halfWidth],
@@ -464,26 +485,12 @@ export const StyleCanvas: React.FC<Props> = ({ stageRef }) => {
           )}
 
           {/* Track edges — inner and outer lines (rendered before curbing so curbing sits on top) */}
-          {trackLines && (
-            <>
-              <Line
-                points={trackLines.innerPoints}
-                stroke={style.track.edgeStroke}
-                strokeWidth={edgeW}
-                lineJoin="round"
-                lineCap="round"
-                closed
-              />
-              <Line
-                points={trackLines.outerPoints}
-                stroke={style.track.edgeStroke}
-                strokeWidth={edgeW}
-                lineJoin="round"
-                lineCap="round"
-                closed
-              />
-            </>
-          )}
+          {edgeLineSegments.inner.map((pts, i) => (
+            <Line key={`ei-${i}`} points={pts} stroke={style.track.edgeStroke} strokeWidth={edgeW} lineJoin="round" lineCap="round" />
+          ))}
+          {edgeLineSegments.outer.map((pts, i) => (
+            <Line key={`eo-${i}`} points={pts} stroke={style.track.edgeStroke} strokeWidth={edgeW} lineJoin="round" lineCap="round" />
+          ))}
 
           {/* Race line arcs */}
           {raceLineArcs.map((arc, i) => (
