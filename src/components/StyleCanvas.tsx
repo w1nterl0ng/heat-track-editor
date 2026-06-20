@@ -455,17 +455,6 @@ export const StyleCanvas: React.FC<Props> = ({ stageRef }) => {
                 dash={[6 / zoom, 4 / zoom]}
                 opacity={0.4}
               />
-              {/* Style-controlled border (e.g. red in Print) */}
-              {style.phantom.stroke !== 'transparent' && (
-                <Line
-                  points={ov.points}
-                  closed
-                  fill="transparent"
-                  stroke={style.phantom.stroke}
-                  strokeWidth={style.track.edgeWidth * halfWidth * 0.022}
-                  lineJoin="round"
-                  listening={false}
-                />
               )}
             </React.Fragment>
           ))}
