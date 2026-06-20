@@ -102,4 +102,9 @@ export interface TrackStyle {
   markers: TrackStyleMarkers;
   lollipops: TrackStyleLollipops;
   surfaces: TrackStyleSurfaces;
+  /** Phantom (bridge crossing) space styling. */
+  phantom: {
+    /** Border stroke color. Use 'transparent' for no border. */
+    stroke: string;
+  };
 }
