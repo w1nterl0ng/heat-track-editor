@@ -633,26 +633,48 @@ export const StyleCanvas: React.FC<Props> = ({ stageRef }) => {
             );
           })()}
 
-          {/* Finish line + label */}
-          {finishLine && (
-            <Group>
-              <Line
-                points={[finishLine.inner.x, finishLine.inner.y, finishLine.outer.x, finishLine.outer.y]}
-                stroke={style.markers.finishStroke}
-                strokeWidth={halfWidth * 0.08}
-                dash={[halfWidth * 0.1, halfWidth * 0.07]}
-                lineCap="round"
-              />
-              <Text
-                x={finishLine.center.x + halfWidth * 0.3}
-                y={finishLine.center.y - halfWidth * 0.3}
-                text="FINISH"
-                fill={style.markers.finishLabelColor}
-                fontSize={halfWidth * 0.5}
-                fontStyle="bold"
-              />
-            </Group>
-          )}
+          {/* Finish line — two offset checkered rows */}
+          {finishLine && (() => {
+            // Derive unit normal and tangent at finish line
+            const nx = (finishLine.outer.x - finishLine.inner.x) / (2 * halfWidth);
+            const ny = (finishLine.outer.y - finishLine.inner.y) / (2 * halfWidth);
+            const tx = -ny;
+            const ty =  nx;
+            const sq = halfWidth * 0.14; // square size (dash = stroke width → square tiles)
+
+            const rows: { off: number; phase: number }[] = [
+              { off: -sq * 0.5, phase: 0  },   // row 1 — white starts at track inner edge
+              { off:  sq * 0.5, phase: sq },    // row 2 — white offset by one square (checkers)
+            ];
+
+            return (
+              <Group>
+                {rows.map((r, ri) => {
+                  const ix = finishLine.inner.x + tx * r.off;
+                  const iy = finishLine.inner.y + ty * r.off;
+                  const ox = finishLine.outer.x + tx * r.off;
+                  const oy = finishLine.outer.y + ty * r.off;
+                  return (
+                    <React.Fragment key={ri}>
+                      {/* Black baseline */}
+                      <Line points={[ix, iy, ox, oy]} stroke="#000000" strokeWidth={sq} lineCap="butt" />
+                      {/* White squares offset per row */}
+                      <Line points={[ix, iy, ox, oy]} stroke="#ffffff" strokeWidth={sq} lineCap="butt"
+                        dash={[sq, sq]} dashOffset={r.phase} />
+                    </React.Fragment>
+                  );
+                })}
+                <Text
+                  x={finishLine.center.x + halfWidth * 0.3}
+                  y={finishLine.center.y - halfWidth * 0.3}
+                  text="FINISH"
+                  fill={style.markers.finishLabelColor}
+                  fontSize={halfWidth * 0.5}
+                  fontStyle="bold"
+                />
+              </Group>
+            );
+          })()}
 
           {/* Legends lines */}
           {legendsLines.map((ll, i) => (
