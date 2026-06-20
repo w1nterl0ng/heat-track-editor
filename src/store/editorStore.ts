@@ -1004,7 +1004,7 @@ export const useEditorStore = create<EditorStore>()(
         customStyle: {
           ...s.customStyle,
           [section]: {
-            ...(s.customStyle[section] as Record<string, unknown>),
+            ...(s.customStyle[section] as object),
             [key]: value,
           },
         },
@@ -1020,7 +1020,7 @@ export const useEditorStore = create<EditorStore>()(
           surfaces: {
             ...s.customStyle.surfaces,
             [type]: {
-              ...(s.customStyle.surfaces[type] as Record<string, unknown>),
+              ...(s.customStyle.surfaces[type] as object),
               [key]: value,
             },
           },

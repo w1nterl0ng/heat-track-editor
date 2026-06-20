@@ -57,8 +57,8 @@ export const STYLE_DEFAULT: TrackStyle = {
   },
   surfaces: {
     tunnel:  { fill: '#292524', opacity: 0.72, visible: true },
-    flooded: { fill: '#3b82f6', opacity: 0.45, visible: true,  useImages: false },
-    gravel:  { fill: '#d97706', opacity: 0.50, visible: true,  useTexture: false },
+    flooded: { fill: '#3b82f6', opacity: 0.45, visible: true },
+    gravel:  { fill: '#d97706', opacity: 0.50, visible: true },
   },
   phantom: { stroke: 'transparent' },
 };
@@ -116,8 +116,8 @@ export const STYLE_BLUEPRINT: TrackStyle = {
   },
   surfaces: {
     tunnel:  { fill: '#0f172a', opacity: 0.8,  visible: true },
-    flooded: { fill: '#1e3a8a', opacity: 0.55, visible: true,  useImages: true },
-    gravel:  { fill: '#44403c', opacity: 0.55, visible: true,  useTexture: true },
+    flooded: { fill: '#1e3a8a', opacity: 0.55, visible: true },
+    gravel:  { fill: '#44403c', opacity: 0.55, visible: true },
   },
   phantom: { stroke: 'transparent' },
 };
@@ -175,8 +175,8 @@ export const STYLE_PRINT: TrackStyle = {
   },
   surfaces: {
     tunnel:  { fill: '#888888', opacity: 0.55, visible: true },
-    flooded: { fill: '#3b82f6', opacity: 0.45, visible: true,  useImages: true },
-    gravel:  { fill: '#c4a26b', opacity: 0.55, visible: true,  useTexture: true },
+    flooded: { fill: '#3b82f6', opacity: 0.45, visible: true },
+    gravel:  { fill: '#c4a26b', opacity: 0.55, visible: true },
   },
   phantom: { stroke: '#dc2626' },
 };

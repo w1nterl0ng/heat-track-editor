@@ -279,7 +279,7 @@ const ColorEditor: React.FC<ColorEditorProps> = ({ style: s, onField, onSurface 
       <div style={edStyles.group}>
         <div style={edStyles.groupLabel}>Surfaces</div>
         {(['tunnel', 'flooded', 'gravel'] as const).map(type => {
-          const surf = s.surfaces[type] as Record<string, unknown>;
+          const surf = s.surfaces[type] as unknown as Record<string, unknown>;
           return (
             <React.Fragment key={type}>
               <div style={{ ...edStyles.groupLabel, marginTop: 6, textTransform: 'none', fontSize: 10, color: '#64748b' }}>
