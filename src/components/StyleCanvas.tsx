@@ -643,12 +643,28 @@ export const StyleCanvas: React.FC<Props> = ({ stageRef }) => {
             const sq = halfWidth * 0.14; // square size (dash = stroke width → square tiles)
 
             const rows: { off: number; phase: number }[] = [
-              { off: -sq * 0.5, phase: 0  },   // row 1 — white starts at track inner edge
-              { off:  sq * 0.5, phase: sq },    // row 2 — white offset by one square (checkers)
+              { off: -sq * 1.5, phase: 0  },   // row 1 — white starts at track inner edge
+              { off: -sq * 0.5, phase: sq },    // row 2 — white offset by one square (checkers)
             ];
 
             return (
               <Group>
+                {/* Thin black border before and after the combined rows */}
+                {(() => {
+                  const minOff = Math.min(...rows.map(r => r.off));
+                  const maxOff = Math.max(...rows.map(r => r.off));
+                  const bw = edgeW;
+                  const beforeOff = minOff - sq / 2;
+                  const afterOff  = maxOff + sq / 2;
+                  return [beforeOff, afterOff].map((off, bi) => (
+                    <Line key={`flb-${bi}`}
+                      points={[
+                        finishLine.inner.x + tx * off, finishLine.inner.y + ty * off,
+                        finishLine.outer.x + tx * off, finishLine.outer.y + ty * off,
+                      ]}
+                      stroke="#000000" strokeWidth={bw} lineCap="butt" />
+                  ));
+                })()}
                 {rows.map((r, ri) => {
                   const ix = finishLine.inner.x + tx * r.off;
                   const iy = finishLine.inner.y + ty * r.off;
