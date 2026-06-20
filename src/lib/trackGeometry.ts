@@ -261,7 +261,7 @@ export function buildRaceLineArcs(
   if (cornerIndices.length < 2) return result;
 
   const totalSamples = samples.length;
-  const offset = halfWidth * 1.35;
+  const offset = halfWidth * 1.175;
 
   cornerIndices.forEach((cStart, ci) => {
     const cEnd = cornerIndices[(ci + 1) % cornerIndices.length];
