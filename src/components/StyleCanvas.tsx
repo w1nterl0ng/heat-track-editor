@@ -443,20 +443,18 @@ export const StyleCanvas: React.FC<Props> = ({ stageRef }) => {
             );
           })}
 
-          {/* Phantom (bridge crossing) overlays */}
+          {/* Phantom (bridge crossing) overlays — dashed border only, no fill */}
           {phantomOverlays.map((ov, i) => (
-            <React.Fragment key={`phantom-${i}`}>
-              <Line
-                points={ov.points}
-                closed
-                fill="transparent"
-                stroke={style.markers.cornerStroke}
-                strokeWidth={2 / zoom}
-                dash={[6 / zoom, 4 / zoom]}
-                opacity={0.4}
-              />
-              )}
-            </React.Fragment>
+            <Line
+              key={`phantom-${i}`}
+              points={ov.points}
+              closed
+              fill="transparent"
+              stroke={style.markers.cornerStroke}
+              strokeWidth={2 / zoom}
+              dash={[6 / zoom, 4 / zoom]}
+              opacity={0.4}
+            />
           ))}
 
           {/* Track body — thick filled center stroke */}
