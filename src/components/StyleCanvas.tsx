@@ -443,19 +443,22 @@ export const StyleCanvas: React.FC<Props> = ({ stageRef }) => {
             );
           })}
 
-          {/* Phantom (bridge crossing) overlays — dashed border only, no fill */}
-          {phantomOverlays.map((ov, i) => (
-            <Line
-              key={`phantom-${i}`}
-              points={ov.points}
-              closed
-              fill="transparent"
-              stroke={style.markers.cornerStroke}
-              strokeWidth={2 / zoom}
-              dash={[6 / zoom, 4 / zoom]}
-              opacity={0.4}
-            />
-          ))}
+          {/* Phantom (bridge crossing) — solid crosslines at each end, no side lines */}
+          {phantomOverlays.map((ov, i) => {
+            const pts = ov.points;
+            const spe = SAMPLES_PER_EDGE;
+            // Crossline at start of space (inner start → outer start)
+            const startCross = [pts[0], pts[1], pts[pts.length - 2], pts[pts.length - 1]];
+            // Crossline at end of space (inner end → outer end)
+            const endCross   = [pts[spe * 2], pts[spe * 2 + 1], pts[spe * 2 + 2], pts[spe * 2 + 3]];
+            const sw = style.track.edgeWidth * halfWidth * 0.022;
+            return (
+              <React.Fragment key={`phantom-${i}`}>
+                <Line points={startCross} stroke={style.track.edgeStroke} strokeWidth={sw} lineCap="square" listening={false} />
+                <Line points={endCross}   stroke={style.track.edgeStroke} strokeWidth={sw} lineCap="square" listening={false} />
+              </React.Fragment>
+            );
+          })}
 
           {/* Track body — thick filled center stroke */}
           {trackLines && (
