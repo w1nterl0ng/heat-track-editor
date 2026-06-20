@@ -446,7 +446,6 @@ export const StyleCanvas: React.FC<Props> = ({ stageRef }) => {
           {/* Phantom (bridge crossing) overlays */}
           {phantomOverlays.map((ov, i) => (
             <React.Fragment key={`phantom-${i}`}>
-              <Line points={ov.points} closed fill="#000000" opacity={0.55} stroke="transparent" strokeWidth={0} />
               <Line
                 points={ov.points}
                 closed
