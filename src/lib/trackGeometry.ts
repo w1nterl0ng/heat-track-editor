@@ -428,7 +428,7 @@ export function buildSpeedMarkers(
   if (samples.length === 0) return [];
   const totalSamples = samples.length;
   const circleRadius = halfWidth * 0.6;
-  const stickLength = halfWidth * 0.35;
+  const stickLength = halfWidth * 0.80; // distance speed lollipop graphic is from the track edge
 
   return nodes
     .map((nd, i) => ({ nd, i }))
@@ -593,7 +593,7 @@ export function buildLegendsMarkers(
 ): LegendsMarker[] {
   if (samples.length === 0) return [];
   const circleRadius = halfWidth * 0.6;
-  const stickLength  = halfWidth * 0.35;
+  const stickLength  = halfWidth * 0.8; // distance legends lollipop graphic is from the track edge
 
   return nodes
     .map((nd, i) => ({ nd, i }))
