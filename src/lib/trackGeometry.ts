@@ -261,7 +261,6 @@ export function buildRaceLineArcs(
   if (cornerIndices.length < 2) return result;
 
   const totalSamples = samples.length;
-  // Offset the race line just beyond the track edge so it sits outside the surface
   const offset = halfWidth * 1.35;
 
   cornerIndices.forEach((cStart, ci) => {
@@ -271,25 +270,26 @@ export function buildRaceLineArcs(
     if (!sd) return;
 
     const useOuter = sd.raceLine === 'R';
-    const points: number[] = [];
+    let points: number[] = [];
 
     for (let k = 0; k <= dist * samplesPerEdge; k++) {
+      const nodeIdx = (cStart + Math.floor(k / samplesPerEdge)) % n;
+      // Break arc at phantom spaces and start a new sub-arc
+      if (nodes[nodeIdx].isPhantom) {
+        if (points.length >= 4) result.push({ points, side: sd.raceLine });
+        points = [];
+        continue;
+      }
       const idx = (cStart * samplesPerEdge + k) % totalSamples;
       const s = samples[idx];
       if (useOuter) {
-        points.push(
-          s.point.x + s.normal.x * offset,
-          s.point.y + s.normal.y * offset,
-        );
+        points.push(s.point.x + s.normal.x * offset, s.point.y + s.normal.y * offset);
       } else {
-        points.push(
-          s.point.x - s.normal.x * offset,
-          s.point.y - s.normal.y * offset,
-        );
+        points.push(s.point.x - s.normal.x * offset, s.point.y - s.normal.y * offset);
       }
     }
 
-    result.push({ points, side: sd.raceLine });
+    if (points.length >= 4) result.push({ points, side: sd.raceLine });
   });
 
   return result;
