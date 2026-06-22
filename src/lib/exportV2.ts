@@ -30,7 +30,8 @@ import type { EditorState, TrackNode } from '../types/track';
 import { computeSegments } from '../store/editorStore';
 import { buildPressCornersMap } from './pressCorners';
 import { downloadFile } from './exportYaml';
-import { dataUrlToBlob } from './exportTiles';
+import { dataUrlToBlob, loadImage } from './exportTiles';
+import { getStyleById } from './stylePresets';
 import { addTilesToZip, addPreviewToZip } from './exportTiles';
 
 // Coordinate space: same as exportJson.ts — normalised to world center, y-flipped.
@@ -389,6 +390,34 @@ export async function exportStyleV2Bundle(
 
   const stageW = styleStage.width();
 
+  // Background fill from the active style — used to composite onto canvas so JPEG
+  // never gets transparent → black pixels
+  const activeStyle =
+    state.activeStyleId === 'custom' && state.customStyle
+      ? state.customStyle
+      : getStyleById(state.activeStyleId);
+  const bgColor = activeStyle.background.fill;
+
+  /** Captures the current Konva stage viewport as a TILE×TILE JPEG composited onto bgColor. */
+  async function captureTileJpeg(outW: number, outH: number): Promise<string> {
+    // Export stage content as PNG (preserves transparency)
+    const pngDataUrl = await styleStage.toDataURL({
+      x: 0, y: 0, width: stageW, height: stageW,
+      mimeType: 'image/png',
+      pixelRatio: outW / stageW,
+    });
+    // Composite: fill canvas with background color, draw stage content on top
+    const canvas = document.createElement('canvas');
+    canvas.width  = outW;
+    canvas.height = outH;
+    const ctx = canvas.getContext('2d')!;
+    ctx.fillStyle = bgColor;
+    ctx.fillRect(0, 0, outW, outH);
+    const img = await loadImage(pngDataUrl);
+    ctx.drawImage(img, 0, 0, outW, outH);
+    return canvas.toDataURL('image/jpeg', 0.92);
+  }
+
   // ── Tile images ─────────────────────────────────────────────────────────────
   const tileFolder = zip.folder('tiles')!;
   const tileScale  = stageW / TILE;   // each tile maps to the full stage width
@@ -397,17 +426,12 @@ export async function exportStyleV2Bundle(
     for (let col = 0; col < tileColumns; col++) {
       groups.forEach(g => {
         g.x(-col * stageW);
-        g.y(-row * stageW);   // tile is square so height offset = stageW too
+        g.y(-row * stageW);
         g.scaleX(tileScale);
         g.scaleY(tileScale);
       });
       styleStage.draw();
-
-      const dataUrl = await styleStage.toDataURL({
-        x: 0, y: 0, width: stageW, height: stageW,
-        mimeType: 'image/jpeg', quality: 0.92,
-        pixelRatio: TILE / stageW,
-      });
+      const dataUrl = await captureTileJpeg(TILE, TILE);
       tileFolder.file(`T_${trackId}_${col}_${row}.jpg`, dataUrlToBlob(dataUrl));
     }
   }
@@ -415,16 +439,13 @@ export async function exportStyleV2Bundle(
   // ── Preview image (780 px wide) ───────────────────────────────────────────
   const PREVIEW_W = 780;
   const worldW    = tileColumns * TILE;
-  const previewScale = stageW / worldW;   // scale to fit full board
+  const previewScale = stageW / worldW;
 
   groups.forEach(g => { g.x(0); g.y(0); g.scaleX(previewScale); g.scaleY(previewScale); });
   styleStage.draw();
 
-  const previewDataUrl = await styleStage.toDataURL({
-    x: 0, y: 0, width: stageW, height: stageW * (tileRows / tileColumns),
-    mimeType: 'image/jpeg', quality: 0.90,
-    pixelRatio: PREVIEW_W / stageW,
-  });
+  const PREVIEW_H = Math.round(PREVIEW_W * tileRows / tileColumns);
+  const previewDataUrl = await captureTileJpeg(PREVIEW_W, PREVIEW_H);
   zip.file(`preview_${trackId}.jpg`, dataUrlToBlob(previewDataUrl));
 
   // ── Restore original transforms ───────────────────────────────────────────
