@@ -201,6 +201,8 @@ interface EditorActions {
   setNodeFinishLine(id: string): void;
   clearFinishLine(): void;
   toggleNodeLegendsLine(id: string): void;
+  /** Auto-place a legends line in the segment starting at segStartNodeId using the speed-based formula. */
+  autoPlaceLegendsLine(segStartNodeId: string): void;
   flipLollipopSide(id: string): void;
   setSpacesBetween(idA: string, idB: string, count: number): void;
 
@@ -662,6 +664,55 @@ export const useEditorStore = create<EditorStore>()(
             updates.legendsLollipopSide = undefined;
           }
           return { ...nd, ...updates };
+        }),
+      }));
+    },
+
+    autoPlaceLegendsLine(segStartNodeId) {
+      const s = get();
+      const nodes = s.nodes;
+      const n = nodes.length;
+      const segs = computeSegments(nodes);
+      const seg = segs.find(sg => sg.startNodeId === segStartNodeId);
+      if (!seg) return;
+
+      // Check no legends line already exists in this segment
+      const arcLen = (seg.endNodeIndex - seg.startNodeIndex + n) % n;
+      const alreadyHas = nodes.some((nd, idx) => {
+        if (!nd.isLegendsLine) return false;
+        const dist = (idx - seg.startNodeIndex + n) % n;
+        return dist > 0 && dist < arcLen;
+      });
+      if (alreadyHas) return;
+
+      // Formula: exitSpeed + 3, clamped to segment spaces
+      const exitNode = nodes[seg.endNodeIndex];
+      const exitSpeed = exitNode?.speedLimit ?? 4;
+      const distance = Math.min(exitSpeed + 3, seg.spaces);
+
+      // Walk backward from exit corner counting non-phantom source nodes
+      let count = 0;
+      let targetId: string | null = null;
+      for (let k = 1; k <= arcLen; k++) {
+        const idx = (seg.endNodeIndex - k + n) % n;
+        if (!nodes[idx].isPhantom) {
+          count++;
+          if (count === distance) { targetId = nodes[idx].id; break; }
+        }
+        if (idx === seg.startNodeIndex) { targetId = nodes[idx].id; break; }
+      }
+      if (!targetId) targetId = nodes[seg.startNodeIndex].id;
+
+      get().snapshot();
+      set(st => ({
+        nodes: st.nodes.map(nd => {
+          if (nd.id !== targetId) return nd;
+          const cornerSide = nd.cornerLollipopSide ?? 'outer';
+          return {
+            ...nd,
+            isLegendsLine: true,
+            legendsLollipopSide: cornerSide === 'outer' ? 'inner' : 'outer',
+          };
         }),
       }));
     },

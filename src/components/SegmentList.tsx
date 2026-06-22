@@ -2,7 +2,7 @@ import React from 'react';
 import { useEditorStore, computeSegments } from '../store/editorStore';
 
 export const SegmentList: React.FC = () => {
-  const { nodes, segmentData, selectedSegmentId, setSelectedSegment, loopClosed } = useEditorStore();
+  const { nodes, segmentData, selectedSegmentId, setSelectedSegment, loopClosed, autoPlaceLegendsLine } = useEditorStore();
 
   const computed = computeSegments(nodes);
 
@@ -29,6 +29,16 @@ export const SegmentList: React.FC = () => {
         });
         const isSelected = selectedSegmentId === (sd?.id ?? null);
 
+        // Check whether this segment already has a legends line
+        const arcLen = (seg.endNodeIndex - seg.startNodeIndex + nodes.length) % nodes.length;
+        const hasLegendsLine = nodes.some((nd, idx) => {
+          if (!nd.isLegendsLine) return false;
+          const dist = (idx - seg.startNodeIndex + nodes.length) % nodes.length;
+          return dist > 0 && dist < arcLen;
+        });
+        const exitSpeed = endNode?.speedLimit ?? 4;
+        const suggestedPos = Math.min(exitSpeed + 3, seg.spaces);
+
         return (
           <div
             key={seg.startNodeId}
@@ -53,6 +63,15 @@ export const SegmentList: React.FC = () => {
                 </div>
               </div>
             </div>
+            {!hasLegendsLine && (
+              <button
+                onClick={e => { e.stopPropagation(); autoPlaceLegendsLine(seg.startNodeId); }}
+                style={styles.legendsBtn}
+                title={`Auto-place legends line ${suggestedPos} spaces from exit (speed ${exitSpeed} + 3)`}
+              >
+                + L
+              </button>
+            )}
             <div style={styles.chevron}>{isSelected ? '▶' : '›'}</div>
           </div>
         );
@@ -63,6 +82,18 @@ export const SegmentList: React.FC = () => {
 
 const styles: Record<string, React.CSSProperties> = {
   list: { overflowY: 'auto', maxHeight: 200 },
+  legendsBtn: {
+    padding: '2px 6px',
+    fontSize: 10,
+    fontWeight: 700,
+    background: '#0f172a',
+    border: '1px solid #c084fc',
+    borderRadius: 4,
+    color: '#c084fc',
+    cursor: 'pointer',
+    flexShrink: 0,
+    marginRight: 4,
+  },
   empty: {
     color: '#475569',
     fontSize: 11,
