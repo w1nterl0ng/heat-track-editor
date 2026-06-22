@@ -829,9 +829,7 @@ export const useEditorStore = create<EditorStore>()(
 
     placeWeatherToken() {
       const s = get();
-      // Default width: 3× half-track-width, positioned at current view centre
-      const halfWidth = (s.trackWidthPct / 100) * 2048 / 2;
-      const defaultWidth = halfWidth * 3;
+      const defaultWidth = 568;
       const cx = s.canvasWidth  / 2 / s.zoom - s.panX / s.zoom;
       const cy = s.canvasHeight / 2 / s.zoom - s.panY / s.zoom;
       get().snapshot();
@@ -861,8 +859,7 @@ export const useEditorStore = create<EditorStore>()(
 
     placeTrackStats() {
       const s = get();
-      const halfWidth = (s.trackWidthPct / 100) * 2048 / 2;
-      const defaultWidth = halfWidth * 4;
+      const defaultWidth = 670;
       const cx = s.canvasWidth  / 2 / s.zoom - s.panX / s.zoom;
       const cy = s.canvasHeight / 2 / s.zoom - s.panY / s.zoom;
       get().snapshot();
