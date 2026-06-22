@@ -44,7 +44,11 @@ export const App: React.FC = () => {
     selectedDesignerSegmentId,
     layoutActiveAnchorId,
     appMode,
+    backgroundMode,
   } = useEditorStore();
+
+  // Separate ref always pointing to a StyleCanvas instance (used for style-mode exports from editor)
+  const styleStageRef = useRef<Konva.Stage | null>(null);
 
   // Resize canvas to always fill the available workspace
   useEffect(() => {
@@ -229,6 +233,12 @@ export const App: React.FC = () => {
               {checklistOpen && <ChecklistPanel />}
               <TrackCanvas stageRef={stageRef} />
               <EmptyHint />
+              {/* Hidden StyleCanvas kept mounted when backgroundMode=style so styleStageRef is valid for export */}
+              {backgroundMode === 'style' && (
+                <div style={{ position: 'absolute', left: -99999, top: -99999, overflow: 'hidden', pointerEvents: 'none' }}>
+                  <StyleCanvas stageRef={styleStageRef} />
+                </div>
+              )}
             </>
           )}
           <ZoomIndicator />
@@ -236,7 +246,7 @@ export const App: React.FC = () => {
         {appMode === 'style' ? (
           <StylePanel stageRef={stageRef} />
         ) : (
-          <Sidebar stageRef={stageRef} />
+          <Sidebar stageRef={stageRef} styleStageRef={styleStageRef} />
         )}
       </div>
     </div>

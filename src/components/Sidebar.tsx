@@ -11,7 +11,7 @@ import { LayoutPanel } from './LayoutPanel';
 import { BackgroundPanel } from './BackgroundPanel';
 import { exportYamlString, downloadFile } from '../lib/exportYaml';
 import { exportTrackLayoutJson } from '../lib/exportJson';
-import { exportV2Package, exportV2Bundle } from '../lib/exportV2';
+import { exportV2Package, exportV2Bundle, exportStyleV2Bundle } from '../lib/exportV2';
 import { exportBoardImage } from '../lib/exportImage';
 import { exportBackgroundTiles, exportPreviewImage } from '../lib/exportTiles';
 import type { PressCornerLabel } from '../types/track';
@@ -20,13 +20,15 @@ type Tab = 'track' | 'segments' | 'export';
 
 interface Props {
   stageRef: React.RefObject<Konva.Stage | null>;
+  /** When backgroundMode=style, this ref points to the hidden StyleCanvas stage used for export. */
+  styleStageRef?: React.RefObject<Konva.Stage | null>;
 }
 
-export const Sidebar: React.FC<Props> = ({ stageRef }) => {
+export const Sidebar: React.FC<Props> = ({ stageRef, styleStageRef }) => {
   const [activeTab, setActiveTab] = useState<Tab>('track');
   const [bundleExporting, setBundleExporting] = useState(false);
   const store = useEditorStore();
-  const { meta, nodes, tool, backgroundImage, segmentData, conditionMarkers, podiumSlots, backbonePhase, designerSegments } = store;
+  const { meta, nodes, tool, backgroundImage, backgroundMode, segmentData, conditionMarkers, podiumSlots, backbonePhase, designerSegments } = store;
 
   const computed = computeSegments(nodes);
   const cornerCount = computed.length;
@@ -84,8 +86,13 @@ export const Sidebar: React.FC<Props> = ({ stageRef }) => {
 
   const handleExportV2Bundle = async () => {
     setBundleExporting(true);
-    try { await exportV2Bundle(store); }
-    finally { setBundleExporting(false); }
+    try {
+      if (backgroundMode === 'style' && styleStageRef?.current) {
+        await exportStyleV2Bundle(store, styleStageRef.current);
+      } else {
+        await exportV2Bundle(store);
+      }
+    } finally { setBundleExporting(false); }
   };
 
   const handleExportImage = async () => {
@@ -194,9 +201,9 @@ export const Sidebar: React.FC<Props> = ({ stageRef }) => {
               label={bundleExporting ? 'Building package…' : `track_${meta.trackId}_v2_package.zip`}
               description="JSON + background tiles in one ZIP · drop into Unity"
               icon="📦"
-              disabled={!canExport || !backgroundImage || bundleExporting}
-              badge={!canExport ? 'Incomplete' : !backgroundImage ? 'No tiles' : bundleExporting ? '…' : 'Ready'}
-              badgeOk={canExport && !!backgroundImage && !bundleExporting}
+              disabled={!canExport || (!backgroundImage && backgroundMode !== 'style') || bundleExporting}
+              badge={!canExport ? 'Incomplete' : (!backgroundImage && backgroundMode !== 'style') ? 'No tiles' : bundleExporting ? '…' : 'Ready'}
+              badgeOk={canExport && (!!backgroundImage || backgroundMode === 'style') && !bundleExporting}
               onClick={handleExportV2Bundle}
             />
             <ExportButton

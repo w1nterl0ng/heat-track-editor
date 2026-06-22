@@ -14,11 +14,13 @@ export const BackgroundPanel: React.FC = () => {
     tileColumns,
     tileRows,
     showTileGrid,
+    backgroundMode,
     setBackgroundOpacity,
     setBackgroundTransform,
     setTileGrid,
     fitBackgroundToGrid,
     toggleTileGrid,
+    setBackgroundMode,
   } = useEditorStore();
 
   const worldWidthCm = (tileColumns * TILE_CM).toFixed(1);
@@ -33,6 +35,29 @@ export const BackgroundPanel: React.FC = () => {
 
   return (
     <div style={styles.panel}>
+
+      {/* ── Background source ──────────────────────── */}
+      <Section title="Board Background">
+        <div style={styles.modeRow}>
+          <span style={styles.modeLabel}>Source</span>
+          <div style={styles.modeBtns}>
+            {(['image', 'style'] as const).map(m => (
+              <button
+                key={m}
+                onClick={() => setBackgroundMode(m)}
+                style={{ ...styles.modeBtn, ...(backgroundMode === m ? styles.modeBtnActive : {}) }}
+              >
+                {m === 'image' ? 'Image' : 'Style'}
+              </button>
+            ))}
+          </div>
+        </div>
+        {backgroundMode === 'style' && (
+          <div style={styles.modeHint}>
+            The styled canvas will be used as the board background in exports.
+          </div>
+        )}
+      </Section>
 
       {/* ── Tile Grid ─────────────────────────────── */}
       <Section title="Tile Grid">
@@ -160,6 +185,18 @@ const NumberInput: React.FC<{
 // ── Styles ──────────────────────────────────────────────────────────────────
 
 const styles: Record<string, React.CSSProperties> = {
+  modeRow: { display: 'flex', alignItems: 'center', gap: 8 },
+  modeLabel: { fontSize: 11, color: '#94a3b8', flex: 1 },
+  modeBtns: { display: 'flex', gap: 4 },
+  modeBtn: {
+    padding: '3px 10px', fontSize: 11, cursor: 'pointer',
+    background: 'transparent', border: '1px solid #334155',
+    borderRadius: 4, color: '#64748b',
+  },
+  modeBtnActive: {
+    background: '#1e3a5f', border: '1px solid #3b82f6', color: '#93c5fd',
+  },
+  modeHint: { fontSize: 10, color: '#475569', fontStyle: 'italic', marginTop: 2 },
   panel: {
     padding: '12px',
     display: 'flex',

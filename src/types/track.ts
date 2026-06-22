@@ -181,6 +181,8 @@ export interface EditorState {
   /** The weather token placed on the board. Null when not yet placed. */
   weatherToken: WeatherToken | null;
   trackStats: TrackStats | null;
+  /** Whether to use the uploaded image or the generated style as the board background for export. */
+  backgroundMode: 'image' | 'style';
   meta: TrackMeta;
   nodes: TrackNode[];
   /** True once the user has clicked the first node to close the loop. */

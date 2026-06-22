@@ -25,10 +25,12 @@
  */
 
 import JSZip from 'jszip';
+import Konva from 'konva';
 import type { EditorState, TrackNode } from '../types/track';
 import { computeSegments } from '../store/editorStore';
 import { buildPressCornersMap } from './pressCorners';
 import { downloadFile } from './exportYaml';
+import { dataUrlToBlob } from './exportTiles';
 import { addTilesToZip, addPreviewToZip } from './exportTiles';
 
 // Coordinate space: same as exportJson.ts — normalised to world center, y-flipped.
@@ -343,6 +345,96 @@ export async function exportV2Bundle(state: EditorState): Promise<void> {
     await addPreviewToZip(state, zip);
   }
 
+  const blob = await zip.generateAsync({ type: 'blob' });
+  const url  = URL.createObjectURL(blob);
+  const a    = document.createElement('a');
+  a.href     = url;
+  a.download = `track_${trackId}_v2_package.zip`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
+/**
+ * Export a V2 bundle using the StyleCanvas stage as the board background.
+ * Temporarily adjusts the stage viewport to capture each 2048×2048 tile,
+ * then restores it. Generates the same ZIP structure as exportV2Bundle.
+ */
+export async function exportStyleV2Bundle(
+  state: EditorState,
+  styleStage: Konva.Stage,
+): Promise<void> {
+  const { tileColumns, tileRows, meta } = state;
+  const TILE = 2048;
+  const trackId = meta.trackId || 'track';
+
+  // Build V2 JSON (same as regular export)
+  const v2obj   = buildV2Object(state);
+  const json    = JSON.stringify(v2obj, null, 2);
+  const checksum = `sha256:${await sha256hex(json)}`;
+  const manifest = buildManifest(v2obj, state.meta, checksum);
+
+  const zip = new JSZip();
+  zip.file('manifest.json', JSON.stringify(manifest, null, 2));
+  zip.file(`track_${trackId}_v2.json`, json);
+
+  // Find all content Groups in the style stage (one per Layer)
+  const groups: Konva.Group[] = styleStage.getLayers()
+    .map(l => l.getChildren()[0])
+    .filter((c): c is Konva.Group => c instanceof Konva.Group);
+
+  // Save current transforms so we can restore after capture
+  const saved = groups.map(g => ({ x: g.x(), y: g.y(), sx: g.scaleX(), sy: g.scaleY() }));
+
+  const stageW = styleStage.width();
+
+  // ── Tile images ─────────────────────────────────────────────────────────────
+  const tileFolder = zip.folder('tiles')!;
+  const tileScale  = stageW / TILE;   // each tile maps to the full stage width
+
+  for (let row = 0; row < tileRows; row++) {
+    for (let col = 0; col < tileColumns; col++) {
+      groups.forEach(g => {
+        g.x(-col * stageW);
+        g.y(-row * stageW);   // tile is square so height offset = stageW too
+        g.scaleX(tileScale);
+        g.scaleY(tileScale);
+      });
+      styleStage.draw();
+
+      const dataUrl = await styleStage.toDataURL({
+        x: 0, y: 0, width: stageW, height: stageW,
+        mimeType: 'image/jpeg', quality: 0.92,
+        pixelRatio: TILE / stageW,
+      });
+      tileFolder.file(`T_${trackId}_${col}_${row}.jpg`, dataUrlToBlob(dataUrl));
+    }
+  }
+
+  // ── Preview image (780 px wide) ───────────────────────────────────────────
+  const PREVIEW_W = 780;
+  const worldW    = tileColumns * TILE;
+  const previewScale = stageW / worldW;   // scale to fit full board
+
+  groups.forEach(g => { g.x(0); g.y(0); g.scaleX(previewScale); g.scaleY(previewScale); });
+  styleStage.draw();
+
+  const previewDataUrl = await styleStage.toDataURL({
+    x: 0, y: 0, width: stageW, height: stageW * (tileRows / tileColumns),
+    mimeType: 'image/jpeg', quality: 0.90,
+    pixelRatio: PREVIEW_W / stageW,
+  });
+  zip.file(`preview_${trackId}.jpg`, dataUrlToBlob(previewDataUrl));
+
+  // ── Restore original transforms ───────────────────────────────────────────
+  groups.forEach((g, i) => {
+    g.x(saved[i].x); g.y(saved[i].y);
+    g.scaleX(saved[i].sx); g.scaleY(saved[i].sy);
+  });
+  styleStage.draw();
+
+  // ── Download ZIP ──────────────────────────────────────────────────────────
   const blob = await zip.generateAsync({ type: 'blob' });
   const url  = URL.createObjectURL(blob);
   const a    = document.createElement('a');

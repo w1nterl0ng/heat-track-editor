@@ -315,6 +315,8 @@ interface EditorStore extends EditorState, EditorActions {
   /** Whether the user is in the main editor or the Style preview mode. Transient — not persisted. */
   appMode: 'editor' | 'style';
   setAppMode(mode: 'editor' | 'style'): void;
+  backgroundMode: 'image' | 'style';
+  setBackgroundMode(mode: 'image' | 'style'): void;
   setActiveStyleId(id: string): void;
   /** Clones the currently active preset into the custom slot and selects it. */
   createCustomStyle(): void;
@@ -364,6 +366,7 @@ const defaultState: EditorState = {
   podiumSlots: [],
   weatherToken: null,
   trackStats: null,
+  backgroundMode: 'image' as const,
   tool: 'layout',
   backbonePhase: 'design',
   designerSegments: [],
@@ -407,6 +410,7 @@ function snapState(s: EditorState): StateSnapshot {
     podiumSlots: s.podiumSlots.map(p => ({ ...p })),
     weatherToken: s.weatherToken ? { ...s.weatherToken } : null,
     trackStats: s.trackStats ? { ...s.trackStats } : null,
+    backgroundMode: s.backgroundMode,
     tool: s.tool,
     showGrid: s.showGrid,
     showSpline: s.showSpline,
@@ -980,6 +984,7 @@ export const useEditorStore = create<EditorStore>()(
     },
     resetChecklist() { set({ checklistItems: {} }); },
     setAppMode(mode) { set({ appMode: mode }); },
+    setBackgroundMode(mode) { set({ backgroundMode: mode }); },
     setActiveStyleId(id) { set({ activeStyleId: id }); },
 
     createCustomStyle() {
