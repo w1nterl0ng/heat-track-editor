@@ -203,8 +203,8 @@ export function normalizeStyle(s: TrackStyle): TrackStyle {
   return {
     ...s,
     background: {
-      transparentBackground: false,
       ...s.background,
+      transparentBackground: s.background.transparentBackground ?? false,
     },
     border: s.border ?? { color: '#000000', width: 0 },
   };

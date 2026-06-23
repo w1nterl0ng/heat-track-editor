@@ -185,7 +185,7 @@ const NumberField: React.FC<NumberFieldProps> = ({ label, value, min, max, step 
 
 interface ColorEditorProps {
   style: TrackStyle;
-  onField: (section: 'background' | 'track' | 'markers' | 'lollipops', key: string, value: string | number | boolean | number[]) => void;
+  onField: (section: 'background' | 'track' | 'markers' | 'lollipops' | 'phantom' | 'border', key: string, value: string | number | boolean | number[]) => void;
   onSurface: (type: 'tunnel' | 'flooded' | 'gravel', key: string, value: string | number | boolean) => void;
 }
 
