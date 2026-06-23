@@ -192,5 +192,20 @@ export const ALL_STYLE_PRESETS: TrackStyle[] = [STYLE_DEFAULT, STYLE_BLUEPRINT, 
 export const DEFAULT_STYLE_ID = STYLE_DEFAULT.id;
 
 export function getStyleById(id: string): TrackStyle {
-  return ALL_STYLE_PRESETS.find(s => s.id === id) ?? STYLE_DEFAULT;
+  return normalizeStyle(ALL_STYLE_PRESETS.find(s => s.id === id) ?? STYLE_DEFAULT);
+}
+
+/**
+ * Backfills any fields that may be missing in styles saved before those
+ * fields were added to the type (e.g. older .hte files).
+ */
+export function normalizeStyle(s: TrackStyle): TrackStyle {
+  return {
+    ...s,
+    background: {
+      transparentBackground: false,
+      ...s.background,
+    },
+    border: s.border ?? { color: '#000000', width: 0 },
+  };
 }

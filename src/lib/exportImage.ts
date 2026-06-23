@@ -1,6 +1,6 @@
 import Konva from 'konva';
 import type { EditorState } from '../types/track';
-import { getStyleById } from './stylePresets';
+import { getStyleById, normalizeStyle } from './stylePresets';
 import { loadImage } from './exportTiles';
 
 /**
@@ -48,10 +48,11 @@ export async function exportBoardImageHiRes(
   const stageW = stage.width();
 
   // Determine background treatment from active style
-  const style =
+  const style = normalizeStyle(
     state.activeStyleId === 'custom' && state.customStyle
       ? state.customStyle
-      : getStyleById(state.activeStyleId);
+      : getStyleById(state.activeStyleId)
+  );
   const transparent = style.background.transparentBackground;
 
   // Gather content groups (one per Layer)

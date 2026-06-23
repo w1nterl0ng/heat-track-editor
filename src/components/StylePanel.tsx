@@ -1,7 +1,7 @@
 import React, { useRef, useState } from 'react';
 import Konva from 'konva';
 import { useEditorStore } from '../store/editorStore';
-import { ALL_STYLE_PRESETS, getStyleById } from '../lib/stylePresets';
+import { ALL_STYLE_PRESETS, getStyleById, normalizeStyle } from '../lib/stylePresets';
 import { exportBoardImage, exportBoardImageHiRes } from '../lib/exportImage';
 import type { TrackStyle } from '../types/trackStyle';
 
@@ -414,7 +414,7 @@ export const StylePanel: React.FC<Props> = ({ stageRef }) => {
   };
 
   const isCustom = activeStyleId === 'custom';
-  const activeStyle = isCustom && customStyle ? customStyle : getStyleById(activeStyleId);
+  const activeStyle = normalizeStyle(isCustom && customStyle ? customStyle : getStyleById(activeStyleId));
 
   return (
     <div style={styles.panel}>
@@ -518,7 +518,7 @@ export const StylePanel: React.FC<Props> = ({ stageRef }) => {
         <div style={styles.section}>
           <div style={styles.sectionLabel}>Edit Colors</div>
           <ColorEditor
-            style={customStyle}
+            style={normalizeStyle(customStyle!)}
             onField={(section, key, value) => updateCustomStyleField(section, key, value)}
             onSurface={(type, key, value) => updateCustomStyleSurface(type, key, value)}
           />

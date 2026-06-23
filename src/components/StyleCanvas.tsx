@@ -25,7 +25,7 @@ import {
   buildStartingGridRows,
   buildPhantomOverlays,
 } from '../lib/trackGeometry';
-import { getStyleById } from '../lib/stylePresets';
+import { getStyleById, normalizeStyle } from '../lib/stylePresets';
 import type { TrackStyle } from '../types/trackStyle';
 
 const SAMPLES_PER_EDGE = 16;
@@ -66,8 +66,9 @@ export const StyleCanvas: React.FC<Props> = ({ stageRef }) => {
     customStyle,
   } = useEditorStore();
 
-  const style: TrackStyle =
-    activeStyleId === 'custom' && customStyle ? customStyle : getStyleById(activeStyleId);
+  const style: TrackStyle = normalizeStyle(
+    activeStyleId === 'custom' && customStyle ? customStyle : getStyleById(activeStyleId)
+  );
 
   const trackWidthPx = (trackWidthPct / 100) * TILE_SIZE;
   const halfWidth = trackWidthPx / 2;

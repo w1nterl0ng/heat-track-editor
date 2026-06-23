@@ -31,7 +31,7 @@ import { computeSegments } from '../store/editorStore';
 import { buildPressCornersMap } from './pressCorners';
 import { downloadFile } from './exportYaml';
 import { dataUrlToBlob, loadImage } from './exportTiles';
-import { getStyleById } from './stylePresets';
+import { getStyleById, normalizeStyle } from './stylePresets';
 import { addTilesToZip, addPreviewToZip } from './exportTiles';
 
 // Coordinate space: same as exportJson.ts — normalised to world center, y-flipped.
@@ -392,10 +392,11 @@ export async function exportStyleV2Bundle(
 
   // Background fill from the active style — used to composite onto canvas so JPEG
   // never gets transparent → black pixels
-  const activeStyle =
+  const activeStyle = normalizeStyle(
     state.activeStyleId === 'custom' && state.customStyle
       ? state.customStyle
-      : getStyleById(state.activeStyleId);
+      : getStyleById(state.activeStyleId)
+  );
   const bgColor = activeStyle.background.fill;
 
   /** Captures the current Konva stage viewport as a TILE×TILE JPEG composited onto bgColor. */
