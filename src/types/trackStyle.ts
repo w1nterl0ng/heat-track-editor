@@ -103,4 +103,10 @@ export interface TrackStyle {
     /** Border stroke color. Use 'transparent' for no border. */
     stroke: string;
   };
+  /** Board border — drawn as an inside stroke around the full tile grid. */
+  border: {
+    color: string;
+    /** Width in world pixels. 0 = no border. */
+    width: number;
+  };
 }

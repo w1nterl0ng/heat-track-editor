@@ -62,6 +62,7 @@ export const STYLE_DEFAULT: TrackStyle = {
     gravel:  { fill: '#d97706', opacity: 0.50, visible: true },
   },
   phantom: { stroke: 'transparent' },
+  border:  { color: '#000000', width: 0 },
 };
 
 /**
@@ -122,6 +123,7 @@ export const STYLE_BLUEPRINT: TrackStyle = {
     gravel:  { fill: '#44403c', opacity: 0.55, visible: true },
   },
   phantom: { stroke: 'transparent' },
+  border:  { color: '#000000', width: 0 },
 };
 
 /**
@@ -182,6 +184,7 @@ export const STYLE_PRINT: TrackStyle = {
     gravel:  { fill: '#c4a26b', opacity: 0.55, visible: true },
   },
   phantom: { stroke: '#dc2626' },
+  border:  { color: '#000000', width: 40 },
 };
 
 export const ALL_STYLE_PRESETS: TrackStyle[] = [STYLE_DEFAULT, STYLE_BLUEPRINT, STYLE_PRINT];

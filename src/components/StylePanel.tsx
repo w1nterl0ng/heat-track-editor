@@ -205,6 +205,12 @@ const ColorEditor: React.FC<ColorEditorProps> = ({ style: s, onField, onSurface 
       </div>
 
       <div style={edStyles.group}>
+        <div style={edStyles.groupLabel}>Border</div>
+        <ColorField  label="Color" value={s.border.color} onChange={v => onField('border', 'color', v)} />
+        <NumberField label="Width (px)" value={s.border.width} min={0} max={300} step={10} onChange={v => onField('border', 'width', v)} />
+      </div>
+
+      <div style={edStyles.group}>
         <div style={edStyles.groupLabel}>Track</div>
         <ColorField label="Body fill"       value={s.track.bodyFill}       onChange={v => tr('bodyFill', v)} />
         <ColorField label="Edge stroke"     value={s.track.edgeStroke}     onChange={v => tr('edgeStroke', v)} />

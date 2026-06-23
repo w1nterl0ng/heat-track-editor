@@ -324,7 +324,7 @@ interface EditorStore extends EditorState, EditorActions {
   createCustomStyle(): void;
   /** Updates a single color/value/tuple field on the custom style. */
   updateCustomStyleField(
-    section: 'background' | 'track' | 'markers' | 'lollipops',
+    section: 'background' | 'track' | 'markers' | 'lollipops' | 'phantom' | 'border',
     key: string,
     value: string | number | boolean | number[],
   ): void;

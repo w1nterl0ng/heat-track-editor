@@ -416,6 +416,23 @@ export const StyleCanvas: React.FC<Props> = ({ stageRef }) => {
               listening={false}
             />
           ))}
+
+          {/* Board border — inside stroke around the full tile grid */}
+          {style.border.width > 0 && (() => {
+            const bw = style.border.width;
+            const W  = tileColumns * TILE_SIZE;
+            const H  = tileRows    * TILE_SIZE;
+            return (
+              <Rect
+                x={bw / 2} y={bw / 2}
+                width={W - bw} height={H - bw}
+                fill="transparent"
+                stroke={style.border.color}
+                strokeWidth={bw}
+                listening={false}
+              />
+            );
+          })()}
         </Group>
       </Layer>
 
