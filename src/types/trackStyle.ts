@@ -1,6 +1,8 @@
 export interface TrackStyleBackground {
   /** Main background fill color. */
   fill: string;
+  /** If true, the background fill is omitted so the PNG export has a transparent background. */
+  transparentBackground: boolean;
   /** Whether to render a blueprint-style grid over the background. */
   showGrid: boolean;
   gridColor: string;

@@ -369,8 +369,8 @@ export const StyleCanvas: React.FC<Props> = ({ stageRef }) => {
       <Layer>
         <Group x={panX} y={panY} scaleX={zoom} scaleY={zoom}>
 
-          {/* Solid background fill when no image is loaded */}
-          {!backgroundImage && (
+          {/* Solid background fill — skipped when transparentBackground is on */}
+          {!backgroundImage && !style.background.transparentBackground && (
             <Rect
               x={0}
               y={0}

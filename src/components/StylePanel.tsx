@@ -2,7 +2,7 @@ import React, { useRef, useState } from 'react';
 import Konva from 'konva';
 import { useEditorStore } from '../store/editorStore';
 import { ALL_STYLE_PRESETS, getStyleById } from '../lib/stylePresets';
-import { exportBoardImage } from '../lib/exportImage';
+import { exportBoardImage, exportBoardImageHiRes } from '../lib/exportImage';
 import type { TrackStyle } from '../types/trackStyle';
 
 // ── Style file import/export ──────────────────────────────────────────────────
@@ -369,9 +369,18 @@ export const StylePanel: React.FC<Props> = ({ stageRef }) => {
   const styleFileRef = useRef<HTMLInputElement>(null);
   const [importError, setImportError] = useState<string | null>(null);
 
+  const [hiResExporting, setHiResExporting] = useState(false);
+
   const handleExportImage = async () => {
     if (!stageRef.current) return;
     await exportBoardImage(stageRef.current, meta.trackId);
+  };
+
+  const handleExportHiRes = async () => {
+    if (!stageRef.current) return;
+    setHiResExporting(true);
+    try { await exportBoardImageHiRes(useEditorStore.getState(), stageRef.current); }
+    finally { setHiResExporting(false); }
   };
 
   const handleExportStyle = () => {
@@ -545,13 +554,39 @@ export const StylePanel: React.FC<Props> = ({ stageRef }) => {
       {/* ── Export ────────────────────────────────────── */}
       <div style={styles.section}>
         <div style={styles.sectionLabel}>Export</div>
+
+        {/* Transparent background toggle — shown in custom editor */}
+        {isCustom && customStyle && (
+          <div style={styles.transparentRow}>
+            <span style={styles.transparentLabel}>Transparent background</span>
+            <div style={edStyles.toggleRow}>
+              {([false, true] as const).map(v => (
+                <button key={String(v)}
+                  onClick={() => updateCustomStyleField('background', 'transparentBackground', v)}
+                  style={{ ...edStyles.toggleBtn, ...(customStyle.background.transparentBackground === v ? edStyles.toggleBtnActive : {}) }}>
+                  {v ? 'on' : 'off'}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
         <button onClick={handleExportImage} style={styles.exportBtn}>
           <span style={styles.exportIcon}>🖼</span>
           <div style={styles.exportBtnText}>
             <div style={styles.exportBtnLabel}>Board Image (PNG)</div>
-            <div style={styles.exportBtnDesc}>Styled board — 2× resolution</div>
+            <div style={styles.exportBtnDesc}>Quick preview — 2× screen resolution</div>
           </div>
         </button>
+
+        <button onClick={handleExportHiRes} style={styles.exportBtn} disabled={hiResExporting}>
+          <span style={styles.exportIcon}>🖼</span>
+          <div style={styles.exportBtnText}>
+            <div style={styles.exportBtnLabel}>{hiResExporting ? 'Building…' : 'Board Image Hi-Res (PNG)'}</div>
+            <div style={styles.exportBtnDesc}>2048×2048 px per tile — stitched full board</div>
+          </div>
+        </button>
+
         <div style={styles.exportNote}>
           The exported image uses the active style. Switch styles and re-export to compare looks.
         </div>
@@ -695,6 +730,8 @@ const styles: Record<string, React.CSSProperties> = {
     lineHeight: '14px',
     fontStyle: 'italic',
   },
+  transparentRow: { display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 },
+  transparentLabel: { fontSize: 11, color: '#94a3b8', flex: 1 },
   exportBtn: {
     display: 'flex',
     alignItems: 'center',

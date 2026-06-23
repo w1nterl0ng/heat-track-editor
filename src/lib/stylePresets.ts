@@ -14,6 +14,7 @@ export const STYLE_DEFAULT: TrackStyle = {
   description: 'Matches the standard editor appearance',
   background: {
     fill: '#1a1a2e',
+    transparentBackground: false,
     showGrid: false,
     gridColor: '#22d3ee',
     gridOpacity: 0.15,
@@ -73,6 +74,7 @@ export const STYLE_BLUEPRINT: TrackStyle = {
   description: 'Technical drawing on dark paper with grid',
   background: {
     fill: '#0a1628',
+    transparentBackground: false,
     showGrid: true,
     gridColor: '#1d4ed8',
     gridOpacity: 0.35,
@@ -132,6 +134,7 @@ export const STYLE_PRINT: TrackStyle = {
   description: 'Black on white — optimized for physical printing',
   background: {
     fill: '#ffffff',
+    transparentBackground: false,
     showGrid: false,
     gridColor: '#cccccc',
     gridOpacity: 0.5,
