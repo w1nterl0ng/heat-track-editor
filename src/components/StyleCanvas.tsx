@@ -144,10 +144,11 @@ export const StyleCanvas: React.FC<Props> = ({ stageRef }) => {
   // ── Geometry (mirrors TrackCanvas useMemo deps) ───────────────────────────
 
   const nodePoints = useMemo(() => nodes.map(nd => ({ x: nd.x, y: nd.y })), [nodes]);
+  const nodeTangentAngles = useMemo(() => nodes.map(nd => nd.tangentAngle ?? null), [nodes]);
 
   const samples = useMemo(
-    () => (loopClosed && nodes.length >= 2 ? sampleSpline(nodePoints, SAMPLES_PER_EDGE) : []),
-    [nodePoints, loopClosed],
+    () => (loopClosed && nodes.length >= 2 ? sampleSpline(nodePoints, SAMPLES_PER_EDGE, nodeTangentAngles) : []),
+    [nodePoints, loopClosed, nodeTangentAngles],
   );
 
   const computed = useMemo(() => computeSegments(nodes), [nodes]);

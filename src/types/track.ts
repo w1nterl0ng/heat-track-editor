@@ -104,6 +104,12 @@ export interface TrackNode {
    */
   surfaceType: SurfaceType;
   /**
+   * Optional custom tangent direction in radians.
+   * null = automatic (Catmull-Rom). Set via Ctrl+scroll on a selected node
+   * to pin the spline direction at a hairpin or sharp corner.
+   */
+  tangentAngle?: number | null;
+  /**
    * Which lateral half of the track the surface covers.
    * Ignored when surfaceType is 'plain'. 'tunnel' is always rendered as 'both'.
    */

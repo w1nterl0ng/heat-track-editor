@@ -175,6 +175,8 @@ export function buildV2Object(state: EditorState): Record<string, unknown> {
   const exportNodes = nodes.map((nd, i) => {
     const pt: Record<string, unknown> = { x: normPts[i].x, y: normPts[i].y };
     if (nd.isPhantom) pt.isPhantom = true;
+    // Negate tangent angle to account for y-axis flip in the exported coordinate system.
+    if (nd.tangentAngle != null) pt.tangentAngle = parseFloat((-nd.tangentAngle).toFixed(6));
     return pt;
   });
 

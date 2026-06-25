@@ -53,13 +53,40 @@ export interface SplineSample {
 }
 
 /**
+ * Cubic Hermite interpolation between p1→p2 given explicit tangent vectors.
+ * m1/m2 are the tangent vectors (not unit) at p1 and p2 respectively.
+ */
+function hermitePoint(
+  p1: Point, m1x: number, m1y: number,
+  p2: Point, m2x: number, m2y: number,
+  t: number,
+): Point {
+  const t2 = t * t;
+  const t3 = t2 * t;
+  const h00 =  2*t3 - 3*t2 + 1;
+  const h10 =    t3 - 2*t2 + t;
+  const h01 = -2*t3 + 3*t2;
+  const h11 =    t3 -   t2;
+  return {
+    x: h00*p1.x + h10*m1x + h01*p2.x + h11*m2x,
+    y: h00*p1.y + h10*m1y + h01*p2.y + h11*m2y,
+  };
+}
+
+/**
  * Densely sample a closed centripetal Catmull-Rom spline through controlPoints.
  * Returns `samplesPerEdge * n` samples, one "edge" per control point pair.
  * Node i → sample index i * samplesPerEdge (exact position on the spline).
+ *
+ * tangentAngles: optional per-node override in radians. When a node has a
+ * non-null angle the spline uses that direction for its tangent (magnitude
+ * stays at the Catmull-Rom default). This lets you "pin" tight hairpin turns
+ * without affecting any other part of the track.
  */
 export function sampleSpline(
   controlPoints: Point[],
-  samplesPerEdge = 16
+  samplesPerEdge = 16,
+  tangentAngles?: (number | null | undefined)[],
 ): SplineSample[] {
   const n = controlPoints.length;
   if (n < 2) return [];
@@ -74,13 +101,45 @@ export function sampleSpline(
     const p2 = controlPoints[(i + 1) % n];
     const p3 = controlPoints[(i + 2) % n];
 
+    const angle1 = tangentAngles?.[i] ?? null;
+    const angle2 = tangentAngles?.[(i + 1) % n] ?? null;
+
+    // Choose interpolation function for this segment
+    let ptFn: (t: number) => Point;
+    if (angle1 !== null || angle2 !== null) {
+      // Cubic Hermite with standard Catmull-Rom tangent magnitudes,
+      // but direction overridden at pinned nodes.
+      const autoM1x = (p2.x - p0.x) * 0.5;
+      const autoM1y = (p2.y - p0.y) * 0.5;
+      const autoM2x = (p3.x - p1.x) * 0.5;
+      const autoM2y = (p3.y - p1.y) * 0.5;
+
+      let m1x = autoM1x, m1y = autoM1y;
+      let m2x = autoM2x, m2y = autoM2y;
+
+      if (angle1 !== null) {
+        const mag = Math.hypot(autoM1x, autoM1y);
+        m1x = Math.cos(angle1) * mag;
+        m1y = Math.sin(angle1) * mag;
+      }
+      if (angle2 !== null) {
+        const mag = Math.hypot(autoM2x, autoM2y);
+        m2x = Math.cos(angle2) * mag;
+        m2y = Math.sin(angle2) * mag;
+      }
+
+      ptFn = (t) => hermitePoint(p1, m1x, m1y, p2, m2x, m2y, t);
+    } else {
+      ptFn = (t) => catmullRom(p0, p1, p2, p3, t);
+    }
+
     for (let s = 0; s < spe; s++) {
       const tLocal = s / spe;
-      const pt = catmullRom(p0, p1, p2, p3, tLocal);
+      const pt = ptFn(tLocal);
 
       // Finite-difference tangent (always one step ahead within the same edge)
       const tAhead = Math.min(tLocal + 1 / spe, 1 - 1e-9);
-      const ahead = catmullRom(p0, p1, p2, p3, tAhead);
+      const ahead = ptFn(tAhead);
       let tx = ahead.x - pt.x;
       let ty = ahead.y - pt.y;
       const len = Math.sqrt(tx * tx + ty * ty) || 1;
