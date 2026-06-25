@@ -186,7 +186,7 @@ const NumberField: React.FC<NumberFieldProps> = ({ label, value, min, max, step 
 interface ColorEditorProps {
   style: TrackStyle;
   onField: (section: 'background' | 'track' | 'markers' | 'lollipops' | 'phantom' | 'border', key: string, value: string | number | boolean | number[]) => void;
-  onSurface: (type: 'tunnel' | 'flooded' | 'gravel', key: string, value: string | number | boolean) => void;
+  onSurface: (type: 'tunnel' | 'flooded' | 'gravel' | 'banked', key: string, value: string | number | boolean) => void;
 }
 
 const ColorEditor: React.FC<ColorEditorProps> = ({ style: s, onField, onSurface }) => {
@@ -284,7 +284,7 @@ const ColorEditor: React.FC<ColorEditorProps> = ({ style: s, onField, onSurface 
 
       <div style={edStyles.group}>
         <div style={edStyles.groupLabel}>Surfaces</div>
-        {(['tunnel', 'flooded', 'gravel'] as const).map(type => {
+        {(['tunnel', 'flooded', 'gravel', 'banked'] as const).map(type => {
           const surf = s.surfaces[type] as unknown as Record<string, unknown>;
           return (
             <React.Fragment key={type}>

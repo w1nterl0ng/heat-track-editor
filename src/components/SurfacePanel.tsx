@@ -7,6 +7,7 @@ const TYPES: { type: SurfaceType; label: string; color: string; description: str
   { type: 'gravel',  label: 'Gravel',  color: '#d97706', description: 'Rocky Roads / loose surface' },
   { type: 'flooded', label: 'Flooded', color: '#3b82f6', description: 'Heavy Rain / standing water' },
   { type: 'tunnel',  label: 'Tunnel',  color: '#57534e', description: 'Tunnel Vision (always full width)' },
+  { type: 'banked',  label: 'Banked',  color: '#94a3b8', description: 'Banked Corner — heat penalty in 3rd/4th gear (always full width)' },
 ];
 
 const SIDES: { side: SurfaceSide; label: string; icon: string }[] = [
@@ -15,8 +16,14 @@ const SIDES: { side: SurfaceSide; label: string; icon: string }[] = [
   { side: 'outside', label: 'Right', icon: '▶' },
 ];
 
+const FORCED_BOTH: SurfaceType[] = ['tunnel', 'banked'];
+
 export const SurfacePanel: React.FC = () => {
-  const { activeSurfaceType, activeSurfaceSide, setActiveSurface } = useEditorStore();
+  const {
+    activeSurfaceType, activeSurfaceSide,
+    activeBankedRaceLineIsLeft,
+    setActiveSurface, setActiveBankedRaceLineIsLeft,
+  } = useEditorStore();
 
   return (
     <div style={styles.panel}>
@@ -47,8 +54,8 @@ export const SurfacePanel: React.FC = () => {
         ))}
       </div>
 
-      {/* Side selector (hidden for tunnel and plain) */}
-      {activeSurfaceType !== 'tunnel' && activeSurfaceType !== 'plain' && (
+      {/* Side selector (hidden for forced-both types and plain) */}
+      {!FORCED_BOTH.includes(activeSurfaceType) && activeSurfaceType !== 'plain' && (
         <>
           <div style={styles.sectionLabel}>Side</div>
           <div style={styles.sideRow}>
@@ -69,12 +76,38 @@ export const SurfacePanel: React.FC = () => {
         </>
       )}
 
+      {/* Race line selector — banked corner only */}
+      {activeSurfaceType === 'banked' && (
+        <>
+          <div style={styles.sectionLabel}>Race line</div>
+          <div style={styles.hint} >
+            Which side is the preferred racing line through the banked zone?
+          </div>
+          <div style={styles.sideRow}>
+            {([true, false] as const).map(isLeft => (
+              <button
+                key={String(isLeft)}
+                style={{
+                  ...styles.sideBtn,
+                  ...(activeBankedRaceLineIsLeft === isLeft ? styles.sideBtnActive : {}),
+                }}
+                onClick={() => setActiveBankedRaceLineIsLeft(isLeft)}
+              >
+                <span>{isLeft ? '◀' : '▶'}</span>
+                <span>{isLeft ? 'Left' : 'Right'}</span>
+              </button>
+            ))}
+          </div>
+        </>
+      )}
+
       {/* Keyboard shortcuts */}
       <div style={styles.shortcuts}>
         <div style={styles.shortcutRow}><kbd style={styles.kbd}>P</kbd> Plain</div>
         <div style={styles.shortcutRow}><kbd style={styles.kbd}>G</kbd> Gravel</div>
         <div style={styles.shortcutRow}><kbd style={styles.kbd}>W</kbd> Flooded</div>
         <div style={styles.shortcutRow}><kbd style={styles.kbd}>T</kbd> Tunnel</div>
+        <div style={styles.shortcutRow}><kbd style={styles.kbd}>B</kbd> Banked</div>
         <div style={styles.shortcutRow}><kbd style={styles.kbd}>1</kbd> Both &nbsp;<kbd style={styles.kbd}>2</kbd> Left &nbsp;<kbd style={styles.kbd}>3</kbd> Right</div>
       </div>
     </div>

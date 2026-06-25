@@ -346,6 +346,7 @@ export const StyleCanvas: React.FC<Props> = ({ stageRef }) => {
     if (type === 'tunnel')  return style.surfaces.tunnel;
     if (type === 'flooded') return style.surfaces.flooded;
     if (type === 'gravel')  return style.surfaces.gravel;
+    if (type === 'banked')  return style.surfaces.banked;
     return { fill: 'transparent', opacity: 0 };
   }
 
@@ -448,6 +449,7 @@ export const StyleCanvas: React.FC<Props> = ({ stageRef }) => {
             if (ov.surfaceType === 'tunnel'  && !sf.tunnel.visible)  return null;
             if (ov.surfaceType === 'flooded' && !sf.flooded.visible) return null;
             if (ov.surfaceType === 'gravel'  && !sf.gravel.visible)  return null;
+            if (ov.surfaceType === 'banked'  && !sf.banked?.visible) return null;
             const cfg = surfaceColor(ov.surfaceType);
             return (
               <Line

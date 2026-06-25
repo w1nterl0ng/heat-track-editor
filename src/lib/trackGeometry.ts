@@ -308,6 +308,7 @@ export const SURFACE_COLORS: Record<SurfaceType, { fill: string; opacity: number
   tunnel:  { fill: '#292524', opacity: 0.72 },
   flooded: { fill: '#3b82f6', opacity: 0.45 },
   gravel:  { fill: '#d97706', opacity: 0.50 },
+  banked:  { fill: '#94a3b8', opacity: 0.40 },  // light gray / cement
 };
 
 /**
@@ -333,7 +334,8 @@ export function buildSurfaceOverlays(
     if (nd.isPhantom) return;
 
     const startSample = ni * samplesPerEdge;
-    const side: SurfaceSide = nd.surfaceType === 'tunnel' ? 'both' : nd.surfaceSide;
+    // tunnel and banked always span the full track width
+    const side: SurfaceSide = (nd.surfaceType === 'tunnel' || nd.surfaceType === 'banked') ? 'both' : nd.surfaceSide;
 
     const innerOffset = side === 'outside' ? 0 : -halfWidth;
     const outerOffset = side === 'inside'  ? 0 :  halfWidth;

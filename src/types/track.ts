@@ -60,7 +60,7 @@ export interface TrackStats {
   width: number;
 }
 
-export type SurfaceType = 'plain' | 'tunnel' | 'flooded' | 'gravel';
+export type SurfaceType = 'plain' | 'tunnel' | 'flooded' | 'gravel' | 'banked';
 /** Which lateral half of the track the surface covers. Tunnel is always 'both'. */
 export type SurfaceSide = 'both' | 'inside' | 'outside';
 
@@ -111,9 +111,15 @@ export interface TrackNode {
   tangentAngle?: number | null;
   /**
    * Which lateral half of the track the surface covers.
-   * Ignored when surfaceType is 'plain'. 'tunnel' is always rendered as 'both'.
+   * Ignored when surfaceType is 'plain'. 'tunnel' and 'banked' are always 'both'.
    */
   surfaceSide: SurfaceSide;
+  /**
+   * Race line direction within a banked corner zone.
+   * true = race line is on the left (inside); false = race line is on the right (outside).
+   * Only meaningful when surfaceType is 'banked'. Defaults to true.
+   */
+  bankedRaceLineIsLeft?: boolean;
   /**
    * Which edge of the track the speed-limit lollipop post extends from.
    * Only meaningful when isCorner = true. Defaults to 'outer' when absent.

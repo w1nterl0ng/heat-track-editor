@@ -60,6 +60,7 @@ export const STYLE_DEFAULT: TrackStyle = {
     tunnel:  { fill: '#292524', opacity: 0.72, visible: true },
     flooded: { fill: '#3b82f6', opacity: 0.45, visible: true },
     gravel:  { fill: '#d97706', opacity: 0.50, visible: true },
+    banked:  { fill: '#94a3b8', opacity: 0.40, visible: true },
   },
   phantom: { stroke: 'transparent' },
   border:  { color: '#000000', width: 0 },
@@ -121,6 +122,7 @@ export const STYLE_BLUEPRINT: TrackStyle = {
     tunnel:  { fill: '#0f172a', opacity: 0.8,  visible: true },
     flooded: { fill: '#1e3a8a', opacity: 0.55, visible: true },
     gravel:  { fill: '#44403c', opacity: 0.55, visible: true },
+    banked:  { fill: '#64748b', opacity: 0.40, visible: true },
   },
   phantom: { stroke: 'transparent' },
   border:  { color: '#000000', width: 0 },
@@ -182,6 +184,7 @@ export const STYLE_PRINT: TrackStyle = {
     tunnel:  { fill: '#888888', opacity: 0.55, visible: true },
     flooded: { fill: '#3b82f6', opacity: 0.45, visible: true },
     gravel:  { fill: '#c4a26b', opacity: 0.55, visible: true },
+    banked:  { fill: '#b0b8c8', opacity: 0.45, visible: true },
   },
   phantom: { stroke: '#dc2626' },
   border:  { color: '#000000', width: 40 },
@@ -207,5 +210,9 @@ export function normalizeStyle(s: TrackStyle): TrackStyle {
       transparentBackground: s.background.transparentBackground ?? false,
     },
     border: s.border ?? { color: '#000000', width: 0 },
+    surfaces: {
+      ...s.surfaces,
+      banked: s.surfaces?.banked ?? { fill: '#94a3b8', opacity: 0.40, visible: true },
+    },
   };
 }
