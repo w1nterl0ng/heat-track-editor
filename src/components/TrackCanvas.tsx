@@ -80,6 +80,8 @@ export const TrackCanvas: React.FC<Props> = ({ stageRef }) => {
     updateConditionMarkerPosition,
     updateConditionMarkerRotation,
     commitConditionMarkerDrag,
+    updateNodeTangentAngle,
+    commitNodeTangentAngle,
     podiumSlots,
     addPodiumSlot,
     updatePodiumSlotPosition,
@@ -123,8 +125,9 @@ export const TrackCanvas: React.FC<Props> = ({ stageRef }) => {
   const [ghostPos, setGhostPos] = useState<{ x: number; y: number; afterNodeId: string } | null>(null);
   const [hoveredSpaceNodeId, setHoveredSpaceNodeId] = useState<string | null>(null);
   const hoveredSpaceNodeIdRef = useRef<string | null>(null);
-  const rotateCommitTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const scaleCommitTimerRef  = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const rotateCommitTimerRef  = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const scaleCommitTimerRef   = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const tangentCommitTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const isPanning = useRef(false);
   const panStart = useRef<{ mx: number; my: number; px: number; py: number } | null>(null);
@@ -168,10 +171,11 @@ export const TrackCanvas: React.FC<Props> = ({ stageRef }) => {
   );
 
   const nodePoints = useMemo(() => nodes.map(nd => ({ x: nd.x, y: nd.y })), [nodes]);
+  const nodeTangentAngles = useMemo(() => nodes.map(nd => nd.tangentAngle ?? null), [nodes]);
 
   const samples = useMemo(
-    () => (loopClosed && nodes.length >= 2 ? sampleSpline(nodePoints, SAMPLES_PER_EDGE) : []),
-    [nodePoints, loopClosed]
+    () => (loopClosed && nodes.length >= 2 ? sampleSpline(nodePoints, SAMPLES_PER_EDGE, nodeTangentAngles) : []),
+    [nodePoints, loopClosed, nodeTangentAngles]
   );
 
   const computed = useMemo(() => computeSegments(nodes), [nodes]);
@@ -498,6 +502,29 @@ export const TrackCanvas: React.FC<Props> = ({ stageRef }) => {
         return;
       }
 
+      // Ctrl+scroll on a single selected node → rotate its tangent angle
+      if ((e.evt.ctrlKey || e.evt.metaKey) && selectedNodeIds.length === 1) {
+        const nodeId = selectedNodeIds[0];
+        const nd = nodes.find(n => n.id === nodeId);
+        if (nd) {
+          const scrollValue = e.evt.deltaY !== 0 ? e.evt.deltaY : e.evt.deltaX;
+          const stepDeg = e.evt.shiftKey ? 1 : 5;
+          const step = (scrollValue > 0 ? stepDeg : -stepDeg) * (Math.PI / 180);
+          // If not yet pinned, seed from the auto tangent direction (prev→next)
+          let current = nd.tangentAngle;
+          if (current == null) {
+            const idx = nodes.indexOf(nd);
+            const prev = nodes[(idx - 1 + nodes.length) % nodes.length];
+            const next = nodes[(idx + 1) % nodes.length];
+            current = Math.atan2(next.y - prev.y, next.x - prev.x);
+          }
+          updateNodeTangentAngle(nodeId, current + step);
+          if (tangentCommitTimerRef.current) clearTimeout(tangentCommitTimerRef.current);
+          tangentCommitTimerRef.current = setTimeout(() => commitNodeTangentAngle(), 600);
+          return;
+        }
+      }
+
       const factor = e.evt.deltaY < 0 ? 1.1 : 0.9;
       const newZoom = Math.max(0.1, Math.min(5, zoom * factor));
       const worldX = (pointer.x - panX) / zoom;
@@ -509,6 +536,7 @@ export const TrackCanvas: React.FC<Props> = ({ stageRef }) => {
       zoom, panX, panY, setZoom, setPan, tool, backbonePhase,
       selectedDesignerSegmentId, designerSegments, layoutUpdateSegmentBend,
       layoutActiveAnchorId, layoutPreviewBend, layoutSetPreviewBend,
+      selectedNodeIds, nodes, updateNodeTangentAngle, commitNodeTangentAngle,
     ]
   );
 
@@ -1553,6 +1581,7 @@ export const TrackCanvas: React.FC<Props> = ({ stageRef }) => {
               const isSelected = selectedNodeIds.includes(nd.id);
               const isAnchor = anchorIds.has(nd.id);
               const isLayoutMode = tool === 'layout' && backbonePhase === 'design';
+              const isPinned = nd.tangentAngle != null;
 
               const radius = isCorner ? CORNER_RADIUS
                 : isAnchor && isLayoutMode ? FIRST_NODE_RADIUS
@@ -1575,6 +1604,34 @@ export const TrackCanvas: React.FC<Props> = ({ stageRef }) => {
 
               return (
                 <Group key={nd.id}>
+                  {/* Tangent arm — shown on selected nodes, orange when pinned */}
+                  {(isSelected || isPinned) && loopClosed && (() => {
+                    const angle = nd.tangentAngle != null
+                      ? nd.tangentAngle
+                      : (() => {
+                          const prev = nodes[(idx - 1 + nodes.length) % nodes.length];
+                          const next = nodes[(idx + 1) % nodes.length];
+                          return Math.atan2(next.y - prev.y, next.x - prev.x);
+                        })();
+                    const armLen = halfWidth * 1.6;
+                    const cos = Math.cos(angle);
+                    const sin = Math.sin(angle);
+                    const color = isPinned ? '#f97316' : 'rgba(255,255,255,0.3)';
+                    const sw = isPinned ? 2.5 / zoom : 1.5 / zoom;
+                    return (
+                      <Line
+                        points={[
+                          nd.x - cos * armLen, nd.y - sin * armLen,
+                          nd.x + cos * armLen, nd.y + sin * armLen,
+                        ]}
+                        stroke={color}
+                        strokeWidth={sw}
+                        lineCap="round"
+                        dash={isPinned ? undefined : [4 / zoom, 4 / zoom]}
+                        listening={false}
+                      />
+                    );
+                  })()}
                   {isSelected && (
                     <Circle x={nd.x} y={nd.y}
                       radius={(radius + 5) / zoom}
@@ -1617,6 +1674,12 @@ export const TrackCanvas: React.FC<Props> = ({ stageRef }) => {
                     onDragMove={e => handleNodeDragMove(e, nd.id)}
                     onDragEnd={e => handleNodeDragEnd(e, nd.id)}
                     onClick={e => handleNodeClick(e, nd.id, isFirst)}
+                    onDblClick={e => {
+                      if (!isPinned) return;
+                      e.cancelBubble = true;
+                      updateNodeTangentAngle(nd.id, null);
+                      commitNodeTangentAngle();
+                    }}
                   />
                   {isFirst && !loopClosed && nodes.length >= 3 && backbonePhase !== 'design' && !canCloseManualLoop && (
                     <Circle x={nd.x} y={nd.y}

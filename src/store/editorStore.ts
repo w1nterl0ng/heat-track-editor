@@ -72,6 +72,7 @@ function makeNode(x: number, y: number, overrides?: Partial<TrackNode>): TrackNo
     isPhantom: false,
     surfaceType: 'plain',
     surfaceSide: 'both',
+    tangentAngle: null,
     ...overrides,
   };
 }
@@ -148,7 +149,11 @@ function applySetSpacesBetween(
   }
 
   const samplesPerEdge = 16;
-  const samples = sampleSpline(nodes.map(nd => ({ x: nd.x, y: nd.y })), samplesPerEdge);
+  const samples = sampleSpline(
+    nodes.map(nd => ({ x: nd.x, y: nd.y })),
+    samplesPerEdge,
+    nodes.map(nd => nd.tangentAngle ?? null),
+  );
   const arc = extractShorterArc(samples, fromIdx * samplesPerEdge, toIdx * samplesPerEdge);
 
   const newNodes: TrackNode[] = Array.from({ length: count - 1 }, (_, k) => {
@@ -174,6 +179,8 @@ interface EditorActions {
   setTool(tool: ToolMode): void;
   setMeta(meta: Partial<TrackMeta>): void;
   setTrackWidth(pct: number): void;
+  updateNodeTangentAngle(nodeId: string, angle: number | null): void;
+  commitNodeTangentAngle(): void;
   setBackgroundImage(dataUrl: string, width: number, height: number): void;
   setBackgroundOpacity(opacity: number): void;
   setBackgroundTransform(x: number, y: number, scale: number): void;
@@ -499,6 +506,15 @@ export const useEditorStore = create<EditorStore>()(
     },
     setMeta(meta) { set(s => ({ meta: { ...s.meta, ...meta } })); },
     setTrackWidth(pct) { set({ trackWidthPct: pct }); },
+
+    updateNodeTangentAngle(nodeId, angle) {
+      set(s => ({
+        nodes: s.nodes.map(nd => nd.id === nodeId ? { ...nd, tangentAngle: angle } : nd),
+      }));
+    },
+    commitNodeTangentAngle() {
+      get().snapshot();
+    },
     setBackgroundOpacity(opacity) { set({ backgroundOpacity: Math.max(0, Math.min(1, opacity)) }); },
     toggleGrid() { set(s => ({ showGrid: !s.showGrid })); },
     toggleSpline() { set(s => ({ showSpline: !s.showSpline })); },
@@ -766,7 +782,7 @@ export const useEditorStore = create<EditorStore>()(
 
       const computed = computeSegments(nodes);
       const pts = nodes.map(nd => ({ x: nd.x, y: nd.y }));
-      const samples = sampleSpline(pts, SAMPLES_PER_EDGE_CM);
+      const samples = sampleSpline(pts, SAMPLES_PER_EDGE_CM, nodes.map(nd => nd.tangentAngle ?? null));
 
       const markers: ConditionMarker[] = [];
       const worldWidth = tileColumns * 2048;
