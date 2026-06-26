@@ -182,6 +182,7 @@ export const App: React.FC = () => {
         if (sk === 'g' || sc === 'KeyG') { e.preventDefault(); setActiveSurface('gravel');  return; }
         if (sk === 'w' || sc === 'KeyW') { e.preventDefault(); setActiveSurface('flooded'); return; }
         if (sk === 't' || sc === 'KeyT') { e.preventDefault(); setActiveSurface('tunnel');  return; }
+        if (sk === 'b' || sc === 'KeyB') { e.preventDefault(); setActiveSurface('banked');  return; }
         if (e.key === '1' || sc === 'Digit1') { e.preventDefault(); setActiveSurface(activeSurfaceType, 'both');    return; }
         if (e.key === '2' || sc === 'Digit2') { e.preventDefault(); setActiveSurface(activeSurfaceType, 'outside'); return; }
         if (e.key === '3' || sc === 'Digit3') { e.preventDefault(); setActiveSurface(activeSurfaceType, 'inside');  return; }

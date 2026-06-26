@@ -98,21 +98,37 @@ export async function addPreviewToZip(state: EditorState, zip: JSZip): Promise<v
   const worldH = tileRows   * TILE_SIZE;
   const PREVIEW_W = 780;
   const PREVIEW_H = Math.round(PREVIEW_W * worldH / worldW);
-  const scaleOut  = PREVIEW_W / worldW;
+
+  const img = await loadImage(backgroundImage);
+  // Compute the actual pixel extent of the background image in world space.
+  const imgWorldW = backgroundSize.width  * backgroundScale;
+  const imgWorldH = backgroundSize.height * backgroundScale;
+
+  // Crop the preview to the tightest rectangle that covers the world canvas,
+  // clipped to the actual image extent. This avoids black bars when the image
+  // doesn't fill the full world.
+  const cropX = Math.max(0, backgroundX);
+  const cropY = Math.max(0, backgroundY);
+  const cropW = Math.min(worldW, backgroundX + imgWorldW) - cropX;
+  const cropH = Math.min(worldH, backgroundY + imgWorldH) - cropY;
+
+  const previewH = cropW > 0 && cropH > 0
+    ? Math.round(PREVIEW_W * cropH / cropW)
+    : PREVIEW_H;
 
   const canvas = document.createElement('canvas');
   canvas.width  = PREVIEW_W;
-  canvas.height = PREVIEW_H;
+  canvas.height = previewH;
   const ctx = canvas.getContext('2d')!;
 
-  ctx.fillStyle = '#000000';
-  ctx.fillRect(0, 0, PREVIEW_W, PREVIEW_H);
+  ctx.fillStyle = '#1a1a1a';
+  ctx.fillRect(0, 0, PREVIEW_W, previewH);
 
-  const img = await loadImage(backgroundImage);
-  const dstX = backgroundX * scaleOut;
-  const dstY = backgroundY * scaleOut;
-  const dstW = backgroundSize.width  * backgroundScale * scaleOut;
-  const dstH = backgroundSize.height * backgroundScale * scaleOut;
+  const scale = PREVIEW_W / (cropW > 0 ? cropW : worldW);
+  const dstX = (backgroundX - cropX) * scale;
+  const dstY = (backgroundY - cropY) * scale;
+  const dstW = imgWorldW * scale;
+  const dstH = imgWorldH * scale;
 
   ctx.drawImage(
     img,

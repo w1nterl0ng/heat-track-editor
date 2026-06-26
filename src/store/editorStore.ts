@@ -182,6 +182,7 @@ interface EditorActions {
   updateNodeTangentAngle(nodeId: string, angle: number | null): void;
   commitNodeTangentAngle(): void;
   setBackgroundImage(dataUrl: string, width: number, height: number): void;
+  clearBackgroundImage(): void;
   setBackgroundOpacity(opacity: number): void;
   setBackgroundTransform(x: number, y: number, scale: number): void;
   fitBackgroundToGrid(): void;
@@ -220,7 +221,10 @@ interface EditorActions {
   // Surface
   activeSurfaceType: SurfaceType;
   activeSurfaceSide: SurfaceSide;
+  /** Race line direction for the banked surface tool (true = left/inside). */
+  activeBankedRaceLineIsLeft: boolean;
   setActiveSurface(type: SurfaceType, side?: SurfaceSide): void;
+  setActiveBankedRaceLineIsLeft(isLeft: boolean): void;
   setSpaceSurface(nodeIds: string[], type: SurfaceType, side: SurfaceSide): void;
   paintSpace(nodeId: string): void;
 
@@ -337,7 +341,7 @@ interface EditorStore extends EditorState, EditorActions {
   ): void;
   /** Updates a single field within a surface sub-object on the custom style. */
   updateCustomStyleSurface(
-    type: 'tunnel' | 'flooded' | 'gravel',
+    type: 'tunnel' | 'flooded' | 'gravel' | 'banked',
     key: string,
     value: string | number | boolean,
   ): void;
@@ -454,6 +458,7 @@ export const useEditorStore = create<EditorStore>()(
     appMode: 'editor' as const,
     activeSurfaceType: 'gravel' as SurfaceType,
     activeSurfaceSide: 'both' as SurfaceSide,
+    activeBankedRaceLineIsLeft: true,
     layoutActiveAnchorId: null,
     layoutPreviewBend: 0,
 
@@ -542,6 +547,10 @@ export const useEditorStore = create<EditorStore>()(
         );
         return { backgroundX: 0, backgroundY: 0, backgroundScale: fitScale };
       });
+    },
+
+    clearBackgroundImage() {
+      set({ backgroundImage: null, backgroundSize: { width: 0, height: 0 }, backgroundX: 0, backgroundY: 0, backgroundScale: 1 });
     },
 
     setBackgroundImage(dataUrl, width, height) {
@@ -960,23 +969,35 @@ export const useEditorStore = create<EditorStore>()(
 
     setSpaceSurface(nodeIds, type, side) {
       get().snapshot();
-      const effectiveSide: SurfaceSide = type === 'tunnel' ? 'both' : side;
+      const isForcedBoth = type === 'tunnel' || type === 'banked';
+      const effectiveSide: SurfaceSide = isForcedBoth ? 'both' : side;
+      const { activeBankedRaceLineIsLeft } = get();
       set(s => ({
         nodes: s.nodes.map(nd =>
           nodeIds.includes(nd.id)
-            ? { ...nd, surfaceType: type, surfaceSide: effectiveSide }
+            ? {
+                ...nd,
+                surfaceType: type,
+                surfaceSide: effectiveSide,
+                bankedRaceLineIsLeft: type === 'banked' ? activeBankedRaceLineIsLeft : nd.bankedRaceLineIsLeft,
+              }
             : nd
         ),
       }));
     },
 
     setActiveSurface(type, side) {
-      const effectiveSide: SurfaceSide = type === 'tunnel' ? 'both' : (side ?? get().activeSurfaceSide);
+      const isForcedBoth = type === 'tunnel' || type === 'banked';
+      const effectiveSide: SurfaceSide = isForcedBoth ? 'both' : (side ?? get().activeSurfaceSide);
       set({ activeSurfaceType: type, activeSurfaceSide: effectiveSide });
     },
 
+    setActiveBankedRaceLineIsLeft(isLeft) {
+      set({ activeBankedRaceLineIsLeft: isLeft });
+    },
+
     paintSpace(nodeId) {
-      const { activeSurfaceType, activeSurfaceSide } = get();
+      const { activeSurfaceType, activeSurfaceSide, activeBankedRaceLineIsLeft } = get();
       get().snapshot();
       set(s => {
         const nd = s.nodes.find(n => n.id === nodeId);
@@ -987,10 +1008,18 @@ export const useEditorStore = create<EditorStore>()(
           nd.surfaceType === activeSurfaceType &&
           nd.surfaceSide === activeSurfaceSide;
         const newType: SurfaceType = isToggle ? 'plain' : activeSurfaceType;
-        const newSide: SurfaceSide = newType === 'tunnel' ? 'both' : activeSurfaceSide;
+        const isForcedBoth = newType === 'tunnel' || newType === 'banked';
+        const newSide: SurfaceSide = isForcedBoth ? 'both' : activeSurfaceSide;
         return {
           nodes: s.nodes.map(n =>
-            n.id === nodeId ? { ...n, surfaceType: newType, surfaceSide: newSide } : n
+            n.id === nodeId
+              ? {
+                  ...n,
+                  surfaceType: newType,
+                  surfaceSide: newSide,
+                  bankedRaceLineIsLeft: newType === 'banked' ? activeBankedRaceLineIsLeft : n.bankedRaceLineIsLeft,
+                }
+              : n
           ),
         };
       });

@@ -87,6 +87,7 @@ export interface TrackStyleSurfaces {
   tunnel:  TrackStyleSurface;
   flooded: TrackStyleSurface;
   gravel:  TrackStyleSurface;
+  banked:  TrackStyleSurface;
 }
 
 export interface TrackStyle {

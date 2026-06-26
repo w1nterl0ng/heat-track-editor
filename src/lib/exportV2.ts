@@ -187,6 +187,41 @@ export function buildV2Object(state: EditorState): Record<string, unknown> {
     .map((nd, i) => (nd.isPhantom ? i : -1))
     .filter(i => i >= 0);
 
+  // ── Banked corners: derive from contiguous runs of banked spaces ───────────
+  // IMPORTANT: must iterate over computed sectors (not raw nodes from 0) so
+  // that absolute space indices match what the game loader computes after
+  // rotating nodes by cornerIndices[last]. Iterating raw nodes from 0 would
+  // produce indices offset by the number of spaces before the rotation point.
+  const bankedCornerZones: { startSpace: number; endSpace: number; raceLineIsLeft: boolean }[] = [];
+  {
+    let absSpace = 0;
+    let runStart: number | null = null;
+    let runRaceLineIsLeft = true;
+    for (const seg of computed) {
+      const arcLen = (seg.endNodeIndex - seg.startNodeIndex + n) % n;
+      for (let step = 0; step < arcLen; step++) {
+        const nd = nodes[(seg.startNodeIndex + step) % n];
+        if (nd.isPhantom) continue;
+        if (nd.surfaceType === 'banked') {
+          if (runStart === null) {
+            runStart = absSpace;
+            runRaceLineIsLeft = nd.bankedRaceLineIsLeft !== false;
+          }
+        } else {
+          if (runStart !== null) {
+            bankedCornerZones.push({ startSpace: runStart, endSpace: absSpace - 1, raceLineIsLeft: runRaceLineIsLeft });
+            runStart = null;
+          }
+        }
+        absSpace++;
+      }
+    }
+    // Close any run that extends to the end of the last sector
+    if (runStart !== null) {
+      bankedCornerZones.push({ startSpace: runStart, endSpace: absSpace - 1, raceLineIsLeft: runRaceLineIsLeft });
+    }
+  }
+
   // Track width in world units (same conversion as exportJson.ts).
   const scaleUnitPerPx = EXPORT_SCALE / Math.max(worldW, worldH);
   const trackWidthPx   = (trackWidthPct / 100) * 2048;
@@ -227,6 +262,7 @@ export function buildV2Object(state: EditorState): Record<string, unknown> {
     nodes:          exportNodes,
     cornerIndices,
     ...(phantomIndices.length > 0 ? { phantomIndices } : {}),
+    ...(bankedCornerZones.length > 0 ? { bankedCorners: bankedCornerZones } : {}),
   };
   const podium = podiumSlots.map(s => ({
     rank:     s.rank,
@@ -295,6 +331,7 @@ function buildManifest(
       if (surf.type === 'flooded') expansionSet.add('Flooded');
       if (surf.type === 'tunnel')  expansionSet.add('Tunnel');
       if (surf.type === 'gravel')  expansionSet.add('Gravel');
+      if (surf.type === 'banked')  expansionSet.add('BankedCorner');
     }
   }
 

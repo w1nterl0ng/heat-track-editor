@@ -269,27 +269,44 @@ export function buildRaceLineArcs(
     const sd = segmentData.find(d => d.startNodeId === nodes[cStart].id);
     if (!sd) return;
 
-    const useOuter = sd.raceLine === 'R';
+    const sectorUseOuter = sd.raceLine === 'R';
     let points: number[] = [];
+    let currentUseOuter = sectorUseOuter;
 
     for (let k = 0; k <= dist * samplesPerEdge; k++) {
       const nodeIdx = (cStart + Math.floor(k / samplesPerEdge)) % n;
-      // Break arc at phantom spaces and start a new sub-arc
-      if (nodes[nodeIdx].isPhantom) {
-        if (points.length >= 4) result.push({ points, side: sd.raceLine });
+      const node = nodes[nodeIdx];
+
+      // Banked nodes override the sector race line with their own per-zone direction.
+      // bankedRaceLineIsLeft=true → left → not outer; false → right → outer.
+      const useOuterHere: boolean = node.surfaceType === 'banked'
+        ? node.bankedRaceLineIsLeft === false
+        : sectorUseOuter;
+
+      // Side changed → close the current arc segment and start a fresh one.
+      if (k > 0 && useOuterHere !== currentUseOuter) {
+        if (points.length >= 4) result.push({ points, side: currentUseOuter ? 'R' : 'L' });
+        points = [];
+      }
+      currentUseOuter = useOuterHere;
+
+      // Break arc at phantom spaces and start a new sub-arc.
+      if (node.isPhantom) {
+        if (points.length >= 4) result.push({ points, side: currentUseOuter ? 'R' : 'L' });
         points = [];
         continue;
       }
+
       const idx = (cStart * samplesPerEdge + k) % totalSamples;
       const s = samples[idx];
-      if (useOuter) {
+      if (useOuterHere) {
         points.push(s.point.x + s.normal.x * offset, s.point.y + s.normal.y * offset);
       } else {
         points.push(s.point.x - s.normal.x * offset, s.point.y - s.normal.y * offset);
       }
     }
 
-    if (points.length >= 4) result.push({ points, side: sd.raceLine });
+    if (points.length >= 4) result.push({ points, side: currentUseOuter ? 'R' : 'L' });
   });
 
   return result;
@@ -308,6 +325,7 @@ export const SURFACE_COLORS: Record<SurfaceType, { fill: string; opacity: number
   tunnel:  { fill: '#292524', opacity: 0.72 },
   flooded: { fill: '#3b82f6', opacity: 0.45 },
   gravel:  { fill: '#d97706', opacity: 0.50 },
+  banked:  { fill: '#94a3b8', opacity: 0.40 },  // light gray / cement
 };
 
 /**
@@ -333,7 +351,8 @@ export function buildSurfaceOverlays(
     if (nd.isPhantom) return;
 
     const startSample = ni * samplesPerEdge;
-    const side: SurfaceSide = nd.surfaceType === 'tunnel' ? 'both' : nd.surfaceSide;
+    // tunnel and banked always span the full track width
+    const side: SurfaceSide = (nd.surfaceType === 'tunnel' || nd.surfaceType === 'banked') ? 'both' : nd.surfaceSide;
 
     const innerOffset = side === 'outside' ? 0 : -halfWidth;
     const outerOffset = side === 'inside'  ? 0 :  halfWidth;
