@@ -21,6 +21,7 @@ export const BackgroundPanel: React.FC = () => {
     fitBackgroundToGrid,
     toggleTileGrid,
     setBackgroundMode,
+    clearBackgroundImage,
   } = useEditorStore();
 
   const worldWidthCm = (tileColumns * TILE_CM).toFixed(1);
@@ -37,7 +38,7 @@ export const BackgroundPanel: React.FC = () => {
     <div style={styles.panel}>
 
       {/* ── Background source ──────────────────────── */}
-      <Section title="Board Background">
+      <Section title="Export Background">
         <div style={styles.modeRow}>
           <span style={styles.modeLabel}>Source</span>
           <div style={styles.modeBtns}>
@@ -47,16 +48,16 @@ export const BackgroundPanel: React.FC = () => {
                 onClick={() => setBackgroundMode(m)}
                 style={{ ...styles.modeBtn, ...(backgroundMode === m ? styles.modeBtnActive : {}) }}
               >
-                {m === 'image' ? 'Image' : 'Style'}
+                {m === 'image' ? 'Image' : 'Style Canvas'}
               </button>
             ))}
           </div>
         </div>
-        {backgroundMode === 'style' && (
-          <div style={styles.modeHint}>
-            The styled canvas will be used as the board background in exports.
-          </div>
-        )}
+        <div style={styles.modeHint}>
+          {backgroundMode === 'style'
+            ? 'The styled track canvas will be rendered as the board tiles on export.'
+            : 'The uploaded background image will be used as board tiles on export.'}
+        </div>
       </Section>
 
       {/* ── Tile Grid ─────────────────────────────── */}
@@ -136,6 +137,12 @@ export const BackgroundPanel: React.FC = () => {
                 Reset Position
               </button>
             </div>
+            <button
+              onClick={clearBackgroundImage}
+              style={{ ...styles.btn, flex: 'none', width: '100%', color: '#f87171', borderColor: '#7f1d1d' }}
+            >
+              Remove Background Image
+            </button>
           </>
         )}
       </Section>

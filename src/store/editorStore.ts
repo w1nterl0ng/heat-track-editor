@@ -182,6 +182,7 @@ interface EditorActions {
   updateNodeTangentAngle(nodeId: string, angle: number | null): void;
   commitNodeTangentAngle(): void;
   setBackgroundImage(dataUrl: string, width: number, height: number): void;
+  clearBackgroundImage(): void;
   setBackgroundOpacity(opacity: number): void;
   setBackgroundTransform(x: number, y: number, scale: number): void;
   fitBackgroundToGrid(): void;
@@ -546,6 +547,10 @@ export const useEditorStore = create<EditorStore>()(
         );
         return { backgroundX: 0, backgroundY: 0, backgroundScale: fitScale };
       });
+    },
+
+    clearBackgroundImage() {
+      set({ backgroundImage: null, backgroundSize: { width: 0, height: 0 }, backgroundX: 0, backgroundY: 0, backgroundScale: 1 });
     },
 
     setBackgroundImage(dataUrl, width, height) {
