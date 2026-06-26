@@ -188,32 +188,35 @@ export function buildV2Object(state: EditorState): Record<string, unknown> {
     .filter(i => i >= 0);
 
   // ── Banked corners: derive from contiguous runs of banked spaces ───────────
-  // Walk nodes in racing order, building absolute game-space indices (skipping
-  // phantom edges). Collect contiguous runs of banked surfaces.
+  // IMPORTANT: must iterate over computed sectors (not raw nodes from 0) so
+  // that absolute space indices match what the game loader computes after
+  // rotating nodes by cornerIndices[last]. Iterating raw nodes from 0 would
+  // produce indices offset by the number of spaces before the rotation point.
   const bankedCornerZones: { startSpace: number; endSpace: number; raceLineIsLeft: boolean }[] = [];
   {
     let absSpace = 0;
     let runStart: number | null = null;
     let runRaceLineIsLeft = true;
-    // Iterate twice (wrapping once) to catch runs that straddle the loop seam
-    // — in practice there's at most 1 banked corner per sector, but be safe.
-    for (let step = 0; step < n; step++) {
-      const nd = nodes[step % n];
-      if (nd.isPhantom) continue;
-      if (nd.surfaceType === 'banked') {
-        if (runStart === null) {
-          runStart = absSpace;
-          runRaceLineIsLeft = nd.bankedRaceLineIsLeft !== false; // default true
+    for (const seg of computed) {
+      const arcLen = (seg.endNodeIndex - seg.startNodeIndex + n) % n;
+      for (let step = 0; step < arcLen; step++) {
+        const nd = nodes[(seg.startNodeIndex + step) % n];
+        if (nd.isPhantom) continue;
+        if (nd.surfaceType === 'banked') {
+          if (runStart === null) {
+            runStart = absSpace;
+            runRaceLineIsLeft = nd.bankedRaceLineIsLeft !== false;
+          }
+        } else {
+          if (runStart !== null) {
+            bankedCornerZones.push({ startSpace: runStart, endSpace: absSpace - 1, raceLineIsLeft: runRaceLineIsLeft });
+            runStart = null;
+          }
         }
-      } else {
-        if (runStart !== null) {
-          bankedCornerZones.push({ startSpace: runStart, endSpace: absSpace - 1, raceLineIsLeft: runRaceLineIsLeft });
-          runStart = null;
-        }
+        absSpace++;
       }
-      absSpace++;
     }
-    // Close any open run at the end of the loop
+    // Close any run that extends to the end of the last sector
     if (runStart !== null) {
       bankedCornerZones.push({ startSpace: runStart, endSpace: absSpace - 1, raceLineIsLeft: runRaceLineIsLeft });
     }
